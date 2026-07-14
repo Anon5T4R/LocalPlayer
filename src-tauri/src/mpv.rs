@@ -22,7 +22,7 @@
 
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -39,6 +39,11 @@ pub struct MpvState {
     child_hwnd: AtomicIsize,
     /// Embed ativo (Windows + modo embutido). Governa se `stage_rect` age.
     embed_active: AtomicBool,
+    /// Sequência da última `stage_rect` aplicada. Os comandos do Tauri são
+    /// `async` (thread pool) e podem chegar FORA DE ORDEM — um "esconde" antigo
+    /// aterrissando depois do "mostra" deixava o vídeo invisível (lição paga na
+    /// v0.1.2). Chamadas com seq menor são descartadas.
+    stage_seq: AtomicU64,
 }
 
 impl Default for MpvState {
@@ -47,6 +52,7 @@ impl Default for MpvState {
             proc: Mutex::new(None),
             child_hwnd: AtomicIsize::new(0),
             embed_active: AtomicBool::new(false),
+            stage_seq: AtomicU64::new(0),
         }
     }
 }
@@ -128,13 +134,7 @@ pub fn build_args(cfg: &MpvArgs) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "--idle=yes".into(),
         "--force-window=yes".into(),
-        "--no-osc".into(),
-        "--no-osd-bar".into(),
-        "--osd-level=0".into(),
         "--keep-open=yes".into(),
-        // Nós tratamos o teclado no HTML; o mpv não deve capturar nada.
-        "--input-default-bindings=no".into(),
-        "--input-vo-keyboard=no".into(),
         // Voz inteligível em velocidade alterada.
         "--af=scaletempo2".into(),
         "--hwdec=auto-safe".into(),
@@ -155,10 +155,18 @@ pub fn build_args(cfg: &MpvArgs) -> Vec<String> {
     }
 
     if let Some(wid) = cfg.wid {
-        // Embed: mpv desenha dentro da nossa child window.
+        // Embed (experimental): mpv desenha dentro da nossa child window; a UI é
+        // 100% nossa — o mpv não deve desenhar OSC nem capturar teclado.
         a.push(format!("--wid={}", wid));
+        a.push("--no-osc".into());
+        a.push("--no-osd-bar".into());
+        a.push("--osd-level=0".into());
+        a.push("--input-default-bindings=no".into());
+        a.push("--input-vo-keyboard=no".into());
     } else {
-        // Janela própria (Plano B): título e sem "ontop".
+        // Janela própria do mpv (padrão): a janela do vídeo é um player completo
+        // por si (OSC + atalhos nativos do mpv LIGADOS) e o app soma playlist/
+        // legendas/velocidade — o estado sincroniza pelos observe_property.
         a.push("--title=LocalPlayer — ${?media-title:${filename}}".into());
     }
     a
@@ -604,10 +612,14 @@ pub fn mpv_command(
 
 /// Move/redimensiona (ou esconde) a área de vídeo embutida. Pixels FÍSICOS,
 /// relativos ao cliente da janela. No-op quando não há embed ativo.
+/// `seq` cresce monotonicamente no front; chamadas atrasadas (seq velho) são
+/// ignoradas — ver o comentário em `MpvState::stage_seq`.
 #[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
 pub fn stage_rect(
     app: tauri::AppHandle,
     state: State<'_, MpvState>,
+    seq: u64,
     x: i32,
     y: i32,
     w: i32,
@@ -615,6 +627,10 @@ pub fn stage_rect(
     visible: bool,
 ) {
     if !state.embed_active.load(Ordering::SeqCst) {
+        return;
+    }
+    // fetch_max devolve o valor ANTERIOR: se ele já era >= seq, esta chamada é velha.
+    if state.stage_seq.fetch_max(seq, Ordering::SeqCst) >= seq {
         return;
     }
     #[cfg(windows)]
@@ -674,6 +690,9 @@ mod tests {
         assert!(a.iter().any(|s| s == "--watch-later-directory=C:/w"));
         assert!(a.iter().any(|s| s == "--save-position-on-quit=yes"));
         assert!(a.iter().any(|s| s.starts_with("--volume=80")));
+        // No embed a UI é nossa: OSC e teclado do mpv desligados.
+        assert!(a.iter().any(|s| s == "--no-osc"));
+        assert!(a.iter().any(|s| s == "--input-default-bindings=no"));
     }
 
     #[test]
@@ -690,6 +709,9 @@ mod tests {
         assert!(a.iter().any(|s| s.contains("--title=")));
         assert!(a.iter().any(|s| s == "--save-position-on-quit=no"));
         assert!(a.iter().any(|s| s.starts_with("--speed=1.5")));
+        // Janela própria é um player completo: OSC/atalhos nativos LIGADOS.
+        assert!(!a.iter().any(|s| s == "--no-osc"));
+        assert!(!a.iter().any(|s| s == "--input-default-bindings=no"));
     }
 
     #[test]

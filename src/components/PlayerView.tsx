@@ -17,8 +17,6 @@ export function PlayerView() {
   const immersive = useUi((s) => s.immersive);
   const controlsVisible = useUi((s) => s.controlsVisible);
   const playlistOpen = useUi((s) => s.playlistOpen);
-  const settingsOpen = useUi((s) => s.settingsOpen);
-  const popoverOpen = useUi((s) => s.popoverOpen);
   const setImmersive = useUi((s) => s.setImmersive);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const setControlsVisible = useUi((s) => s.setControlsVisible);
@@ -26,8 +24,11 @@ export function PlayerView() {
   const stageRef = useRef<HTMLDivElement>(null);
 
   // Sincroniza a child window do vídeo (Windows/embed) com o retângulo do #stage.
-  // Coordenadas em pixels FÍSICOS (× devicePixelRatio). Escondemos o embed quando
-  // é áudio, quando há modal/popover por cima, ou ao sair da tela do player.
+  // Coordenadas em pixels FÍSICOS (× devicePixelRatio). Só esconde pra modal/
+  // popover aparecer por cima (o mpv cuida de áudio-puro sozinho). O efeito
+  // depende SÓ de `embedded` e lê o resto via getState/subscribe — esconder no
+  // cleanup a cada dep era uma corrida (comandos async chegam fora de ordem) que
+  // deixava o vídeo invisível; agora o hide só acontece no unmount real.
   useEffect(() => {
     if (!embedded) return;
     const el = stageRef.current;
@@ -35,7 +36,8 @@ export function PlayerView() {
     const report = () => {
       const r = el.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      const visible = hasVideo && !settingsOpen && !popoverOpen;
+      const ui = useUi.getState();
+      const visible = !ui.settingsOpen && !ui.popoverOpen;
       stageRect(
         Math.round(r.left * dpr),
         Math.round(r.top * dpr),
@@ -48,12 +50,14 @@ export function PlayerView() {
     const ro = new ResizeObserver(report);
     ro.observe(el);
     window.addEventListener("resize", report);
+    const unsub = useUi.subscribe(report);
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", report);
+      unsub();
       stageRect(0, 0, 0, 0, false);
     };
-  }, [embedded, hasVideo, settingsOpen, popoverOpen, immersive, playlistOpen, controlsVisible]);
+  }, [embedded]);
 
   // Auto-ocultar controles no modo imersivo (mouse parado por 2,5 s).
   useEffect(() => {
@@ -102,9 +106,9 @@ export function PlayerView() {
         <div className="stage" ref={stageRef} onClick={() => usePlayer.getState().togglePause()}>
           {!embedded && (
             <div className="stage-msg">
-              <p>O vídeo está tocando em uma janela própria do mpv.</p>
+              <p>🎬 O vídeo está tocando na janela do player.</p>
               <p className="stage-sub">
-                (Modo janela separada — no Windows dá pra embutir o vídeo aqui nas Configurações.)
+                Controle por aqui (playlist, legendas, velocidade…) ou direto na janela do vídeo.
               </p>
             </div>
           )}

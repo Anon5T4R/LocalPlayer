@@ -188,7 +188,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
     }
     // Trocar o modo de janela (embed × separada) ou o caminho do mpv exige
     // reiniciar o processo do mpv com outros argumentos.
-    if (("separateWindow" in patch || "mpvPath" in patch) && get().started) {
+    if (("embedVideo" in patch || "mpvPath" in patch) && get().started) {
       const cur = get();
       await B.mpvStop().catch(() => {});
       set({ started: false, embedded: false });
@@ -209,7 +209,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
         volume,
         speed: speed || settings.defaultSpeed,
         remember: settings.rememberPosition,
-        separateWindow: settings.separateWindow,
+        separateWindow: !settings.embedVideo,
         mpvPath: settings.mpvPath,
       });
       set({ started: true, embedded: r.embedded });

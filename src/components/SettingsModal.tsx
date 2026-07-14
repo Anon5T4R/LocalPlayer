@@ -68,16 +68,16 @@ export function SettingsModal() {
           {isWin && (
             <label className="row">
               <span>
-                Vídeo em janela separada
+                Embutir o vídeo na janela do app (experimental)
                 <small className="row-hint">
-                  {embedded ? "Agora: embutido na janela do app." : "Agora: janela própria do mpv."} Reinicia a
-                  reprodução ao trocar.
+                  {embedded ? "Agora: embutido." : "Agora: janela própria do vídeo (recomendado)."} Em alguns
+                  sistemas o embed fica preto/instável. Reinicia a reprodução ao trocar.
                 </small>
               </span>
               <input
                 type="checkbox"
-                checked={settings.separateWindow}
-                onChange={(e) => void setSettings({ separateWindow: e.target.checked })}
+                checked={settings.embedVideo}
+                onChange={(e) => void setSettings({ embedVideo: e.target.checked })}
               />
             </label>
           )}

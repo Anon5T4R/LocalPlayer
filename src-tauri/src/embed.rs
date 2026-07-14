@@ -15,8 +15,8 @@ use std::ptr;
 use winapi::shared::windef::HWND;
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::{
-    CreateWindowExW, DestroyWindow, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_NOZORDER,
-    SW_HIDE, SW_SHOWNOACTIVATE, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_VISIBLE,
+    CreateWindowExW, DestroyWindow, SetWindowPos, ShowWindow, HWND_TOP, SWP_NOACTIVATE, SW_HIDE,
+    SW_SHOWNOACTIVATE, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_VISIBLE,
 };
 
 fn wide(s: &str) -> Vec<u16> {
@@ -63,7 +63,9 @@ pub unsafe fn set_rect(child_isize: isize, x: i32, y: i32, w: i32, h: i32, visib
     let child = child_isize as HWND;
     if visible && w > 0 && h > 0 {
         ShowWindow(child, SW_SHOWNOACTIVATE);
-        SetWindowPos(child, ptr::null_mut(), x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+        // HWND_TOP (não NOZORDER): traz a child de vídeo pra cima do WebView2, senão
+        // o webview opaco a cobre e o palco fica preto (lição paga em v0.1.2).
+        SetWindowPos(child, HWND_TOP, x, y, w, h, SWP_NOACTIVATE);
     } else {
         ShowWindow(child, SW_HIDE);
     }

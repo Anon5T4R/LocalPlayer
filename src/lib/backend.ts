@@ -43,13 +43,18 @@ export const mpvStart = (o: StartOpts) =>
 
 export const mpvStop = () => cmd<void>("mpv_stop");
 
+// Os comandos async do Tauri podem chegar fora de ordem no Rust; o `seq`
+// crescente deixa o Rust descartar chamadas atrasadas (um "esconde" velho
+// aterrissando depois do "mostra" deixava o vídeo invisível). Base em Date.now()
+// pra sobreviver a reload do webview (HMR) sem voltar atrás.
+let stageSeq = Date.now() * 1000;
 export const stageRect = (
   x: number,
   y: number,
   w: number,
   h: number,
   visible: boolean,
-) => cmd<void>("stage_rect", { x, y, w, h, visible });
+) => cmd<void>("stage_rect", { seq: ++stageSeq, x, y, w, h, visible });
 
 // ---- mpv: comando cru ----
 export const mpvCommand = (args: unknown[]) => cmd<void>("mpv_command", { args });
