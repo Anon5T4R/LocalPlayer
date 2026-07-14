@@ -11,8 +11,15 @@
 //! O Rust é um "cano burro": manda `{"command":[...]}` e repassa cada linha de
 //! evento do mpv pro front (evento Tauri `mpv-event`). Quem observa propriedades
 //! e interpreta os eventos é o TypeScript (src/lib/mpvEvents.ts).
+//!
+//! Gotcha do Windows (pago em 2026-07-14): NÃO dá pra ter uma thread leitora
+//! bloqueada num ReadFile e escrever no MESMO named pipe por um handle clonado —
+//! I/O síncrono no mesmo file object serializa e a escrita fica presa atrás da
+//! leitura bloqueada (deadlock: mpv só manda dados depois que a gente pede, mas
+//! pedir é escrever, que está bloqueado). Por isso no Windows usamos um handle
+//! único com leitura NÃO-bloqueante (PeekNamedPipe antes do ReadFile), tudo sob
+//! um Mutex. No Unix o socket full-duplex não tem esse problema.
 
-use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
@@ -46,9 +53,14 @@ impl Default for MpvState {
 
 struct Proc {
     child: Child,
-    writer: Box<dyn Write + Send>,
+    writer: Box<dyn IpcWriter>,
     /// Caminho do socket UNIX pra limpar no fim (vazio no Windows — named pipe some sozinho).
     sock_path: String,
+}
+
+/// Abstração de escrita na IPC do mpv (uma linha JSON por comando).
+trait IpcWriter: Send {
+    fn send(&mut self, line: &str) -> std::io::Result<()>;
 }
 
 #[derive(Serialize)]
@@ -148,7 +160,6 @@ pub fn build_args(cfg: &MpvArgs) -> Vec<String> {
     } else {
         // Janela própria (Plano B): título e sem "ontop".
         a.push("--title=LocalPlayer — ${?media-title:${filename}}".into());
-        a.push("--force-window=yes".into());
     }
     a
 }
@@ -180,20 +191,117 @@ fn ipc_path(pid: u32) -> String {
 }
 #[cfg(not(windows))]
 fn ipc_path(pid: u32) -> String {
-    // app_data seria melhor, mas /tmp evita caminho longo demais pro socket UNIX.
     format!("/tmp/localplayer-mpv-{}.sock", pid)
 }
 
+// ===================== IPC: Windows (named pipe) =====================
 #[cfg(windows)]
-fn connect_ipc(pipe: &str) -> std::io::Result<(Box<dyn Read + Send>, Box<dyn Write + Send>)> {
-    use std::fs::OpenOptions;
+mod winpipe {
+    use std::io;
+    use std::ptr;
+    use std::sync::{Arc, Mutex};
+
+    use winapi::shared::minwindef::DWORD;
+    use winapi::um::fileapi::{CreateFileW, ReadFile, WriteFile, OPEN_EXISTING};
+    use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
+    use winapi::um::namedpipeapi::PeekNamedPipe;
+    use winapi::um::winnt::{GENERIC_READ, GENERIC_WRITE, HANDLE};
+
+    pub struct WinPipe {
+        h: HANDLE,
+    }
+    // O HANDLE é dono do recurso; só é usado sob o Mutex de fora.
+    unsafe impl Send for WinPipe {}
+
+    impl Drop for WinPipe {
+        fn drop(&mut self) {
+            unsafe {
+                if !self.h.is_null() && self.h != INVALID_HANDLE_VALUE {
+                    CloseHandle(self.h);
+                }
+            }
+        }
+    }
+
+    fn wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+
+    /// Abre o named pipe do mpv como cliente (handle síncrono).
+    pub fn open(name: &str) -> io::Result<Arc<Mutex<WinPipe>>> {
+        let w = wide(name);
+        let h = unsafe {
+            CreateFileW(
+                w.as_ptr(),
+                GENERIC_READ | GENERIC_WRITE,
+                0,
+                ptr::null_mut(),
+                OPEN_EXISTING,
+                0,
+                ptr::null_mut(),
+            )
+        };
+        if h == INVALID_HANDLE_VALUE || h.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Arc::new(Mutex::new(WinPipe { h })))
+    }
+
+    pub fn write_all(p: &WinPipe, data: &[u8]) -> io::Result<()> {
+        let mut off = 0usize;
+        while off < data.len() {
+            let mut written: DWORD = 0;
+            let ok = unsafe {
+                WriteFile(
+                    p.h,
+                    data[off..].as_ptr() as *const _,
+                    (data.len() - off) as DWORD,
+                    &mut written,
+                    ptr::null_mut(),
+                )
+            };
+            if ok == 0 {
+                return Err(io::Error::last_os_error());
+            }
+            off += written as usize;
+        }
+        Ok(())
+    }
+
+    /// Lê o que estiver disponível (0 se nada). NUNCA bloqueia — é isso que evita
+    /// o deadlock de serialização de I/O síncrono no mesmo file object.
+    pub fn read_available(p: &WinPipe, buf: &mut [u8]) -> io::Result<usize> {
+        let mut avail: DWORD = 0;
+        let ok = unsafe {
+            PeekNamedPipe(p.h, ptr::null_mut(), 0, ptr::null_mut(), &mut avail, ptr::null_mut())
+        };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        if avail == 0 {
+            return Ok(0);
+        }
+        let to_read = (avail as usize).min(buf.len());
+        let mut read: DWORD = 0;
+        let ok = unsafe {
+            ReadFile(p.h, buf.as_mut_ptr() as *mut _, to_read as DWORD, &mut read, ptr::null_mut())
+        };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(read as usize)
+    }
+}
+
+#[cfg(windows)]
+type WinPipeRef = std::sync::Arc<std::sync::Mutex<winpipe::WinPipe>>;
+
+#[cfg(windows)]
+fn win_connect(pipe: &str) -> std::io::Result<WinPipeRef> {
     let mut last: Option<std::io::Error> = None;
     for _ in 0..100 {
-        match OpenOptions::new().read(true).write(true).open(pipe) {
-            Ok(f) => {
-                let r = f.try_clone()?;
-                return Ok((Box::new(r), Box::new(f)));
-            }
+        match winpipe::open(pipe) {
+            Ok(p) => return Ok(p),
             Err(e) => {
                 last = Some(e);
                 std::thread::sleep(Duration::from_millis(60));
@@ -203,16 +311,71 @@ fn connect_ipc(pipe: &str) -> std::io::Result<(Box<dyn Read + Send>, Box<dyn Wri
     Err(last.unwrap_or_else(|| std::io::Error::other("named pipe do mpv não abriu")))
 }
 
+#[cfg(windows)]
+struct WinWriter {
+    pipe: WinPipeRef,
+}
+#[cfg(windows)]
+impl IpcWriter for WinWriter {
+    fn send(&mut self, line: &str) -> std::io::Result<()> {
+        let guard = self.pipe.lock().map_err(|_| std::io::Error::other("ipc lock"))?;
+        winpipe::write_all(&guard, line.as_bytes())
+    }
+}
+
+#[cfg(windows)]
+fn win_reader_loop(pipe: WinPipeRef, app: tauri::AppHandle) {
+    let mut acc: Vec<u8> = Vec::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = {
+            let guard = match pipe.lock() {
+                Ok(g) => g,
+                Err(_) => break,
+            };
+            match winpipe::read_available(&guard, &mut buf) {
+                Ok(n) => n,
+                Err(_) => break, // pipe quebrou = mpv saiu
+            }
+        };
+        if n == 0 {
+            std::thread::sleep(Duration::from_millis(15));
+            continue;
+        }
+        acc.extend_from_slice(&buf[..n]);
+        while let Some(pos) = acc.iter().position(|&b| b == b'\n') {
+            let line: Vec<u8> = acc.drain(..=pos).collect();
+            let s = String::from_utf8_lossy(&line[..line.len() - 1]);
+            let s = s.trim();
+            if !s.is_empty() {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+                    let _ = app.emit("mpv-event", v);
+                }
+            }
+        }
+    }
+    let _ = app.emit("mpv-exit", ());
+}
+
+// ===================== IPC: Unix (socket) =====================
 #[cfg(not(windows))]
-fn connect_ipc(path: &str) -> std::io::Result<(Box<dyn Read + Send>, Box<dyn Write + Send>)> {
+struct UnixWriter(std::os::unix::net::UnixStream);
+#[cfg(not(windows))]
+impl IpcWriter for UnixWriter {
+    fn send(&mut self, line: &str) -> std::io::Result<()> {
+        use std::io::Write;
+        self.0.write_all(line.as_bytes())?;
+        self.0.flush()
+    }
+}
+
+#[cfg(not(windows))]
+fn unix_connect(path: &str) -> std::io::Result<std::os::unix::net::UnixStream> {
     use std::os::unix::net::UnixStream;
     let mut last: Option<std::io::Error> = None;
     for _ in 0..100 {
         match UnixStream::connect(path) {
-            Ok(s) => {
-                let r = s.try_clone()?;
-                return Ok((Box::new(r), Box::new(s)));
-            }
+            Ok(s) => return Ok(s),
             Err(e) => {
                 last = Some(e);
                 std::thread::sleep(Duration::from_millis(60));
@@ -220,6 +383,22 @@ fn connect_ipc(path: &str) -> std::io::Result<(Box<dyn Read + Send>, Box<dyn Wri
         }
     }
     Err(last.unwrap_or_else(|| std::io::Error::other("socket do mpv não abriu")))
+}
+
+#[cfg(not(windows))]
+fn unix_reader_loop(stream: std::os::unix::net::UnixStream, app: tauri::AppHandle) {
+    use std::io::{BufRead, BufReader};
+    let buf = BufReader::new(stream);
+    for line in buf.lines().map_while(Result::ok) {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+            let _ = app.emit("mpv-event", v);
+        }
+    }
+    let _ = app.emit("mpv-exit", ());
 }
 
 /// Cria (uma vez) a child window de vídeo no Windows e guarda o HWND no estado.
@@ -252,7 +431,6 @@ pub fn mpv_available(app: tauri::AppHandle, override_path: String) -> bool {
             if cfg!(windows) {
                 p.exists()
             } else {
-                // Linux: confirmar que roda de verdade.
                 Command::new(&p)
                     .arg("--version")
                     .stdout(Stdio::null())
@@ -267,7 +445,6 @@ pub fn mpv_available(app: tauri::AppHandle, override_path: String) -> bool {
 }
 
 /// Sobe o mpv ocioso (se ainda não estiver) e conecta a IPC.
-/// `separate_window` força o Plano B mesmo no Windows (toggle nas Configurações).
 #[tauri::command(async)]
 #[allow(clippy::too_many_arguments)]
 pub fn mpv_start(
@@ -331,7 +508,6 @@ pub fn mpv_start(
         .unwrap_or_default();
 
     let ipc = ipc_path(std::process::id());
-    // Socket UNIX antigo pode ter ficado pra trás — limpa antes.
     #[cfg(not(windows))]
     {
         let _ = std::fs::remove_file(&ipc);
@@ -357,32 +533,47 @@ pub fn mpv_start(
         .spawn()
         .map_err(|e| format!("não consegui iniciar o mpv: {}", e))?;
 
-    let (reader, writer) = match connect_ipc(&ipc) {
-        Ok(rw) => rw,
-        Err(e) => {
-            // Não conectou: mata o mpv pra não ficar órfão.
-            let mut c = child;
-            let _ = c.kill();
-            return Err(format!("mpv subiu mas a IPC não respondeu: {}", e));
-        }
-    };
-
-    // Thread leitora: cada linha JSON do mpv vira um evento Tauri `mpv-event`.
-    let app_ev = app.clone();
-    std::thread::spawn(move || {
-        let buf = BufReader::new(reader);
-        for line in buf.lines().map_while(Result::ok) {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
+    // Conecta a IPC e sobe a thread leitora (repassa eventos pro front).
+    let writer: Box<dyn IpcWriter>;
+    #[cfg(windows)]
+    {
+        match win_connect(&ipc) {
+            Ok(pipe) => {
+                let rp = pipe.clone();
+                let app_ev = app.clone();
+                std::thread::spawn(move || win_reader_loop(rp, app_ev));
+                writer = Box::new(WinWriter { pipe });
             }
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-                let _ = app_ev.emit("mpv-event", v);
+            Err(e) => {
+                let mut c = child;
+                let _ = c.kill();
+                return Err(format!("mpv subiu mas a IPC não respondeu: {}", e));
             }
         }
-        // Pipe fechou = mpv saiu.
-        let _ = app_ev.emit("mpv-exit", ());
-    });
+    }
+    #[cfg(not(windows))]
+    {
+        match unix_connect(&ipc) {
+            Ok(stream) => {
+                let wr = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(e) => {
+                        let mut c = child;
+                        let _ = c.kill();
+                        return Err(format!("clonar socket do mpv: {}", e));
+                    }
+                };
+                let app_ev = app.clone();
+                std::thread::spawn(move || unix_reader_loop(stream, app_ev));
+                writer = Box::new(UnixWriter(wr));
+            }
+            Err(e) => {
+                let mut c = child;
+                let _ = c.kill();
+                return Err(format!("mpv subiu mas a IPC não respondeu: {}", e));
+            }
+        }
+    }
 
     state.embed_active.store(embedded, Ordering::SeqCst);
     *state.proc.lock().map_err(|_| "estado corrompido")? = Some(Proc {
@@ -395,8 +586,6 @@ pub fn mpv_start(
 }
 
 /// Envia um comando cru pro mpv: `args` é o array de `{"command": args}`.
-/// Ex.: `["loadfile", "/x.mp4", "replace"]`, `["set_property","pause",true]`,
-/// `["observe_property", 1, "time-pos"]`.
 #[tauri::command(async)]
 pub fn mpv_command(
     state: State<'_, MpvState>,
@@ -408,9 +597,8 @@ pub fn mpv_command(
     let mut line = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
     line.push('\n');
     proc.writer
-        .write_all(line.as_bytes())
+        .send(&line)
         .map_err(|e| format!("falha ao falar com o mpv: {}", e))?;
-    proc.writer.flush().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -448,10 +636,7 @@ pub fn stage_rect(
 pub fn stop(state: &MpvState) {
     if let Ok(mut guard) = state.proc.lock() {
         if let Some(mut proc) = guard.take() {
-            let quit = serde_json::json!({ "command": ["quit"] }).to_string();
-            let _ = proc.writer.write_all(quit.as_bytes());
-            let _ = proc.writer.write_all(b"\n");
-            let _ = proc.writer.flush();
+            let _ = proc.writer.send("{\"command\":[\"quit\"]}\n");
             std::thread::sleep(Duration::from_millis(80));
             let _ = proc.child.kill();
             let _ = proc.child.wait();
