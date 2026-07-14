@@ -30,13 +30,20 @@ type Menu = "audio" | "sub" | "chapters" | "speed" | null;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 export function ControlBar() {
+  // Lição paga (v0.1.2, React #185): NUNCA assinar a store inteira (`useUi()`)
+  // e usá-la como dep de efeito que faz set — cada set cria estado novo →
+  // re-render → efeito → set → loop infinito que derruba o React (tela preta).
+  // Selectors individuais + actions (estáveis) quebram o ciclo.
   const p = usePlayer();
-  const ui = useUi();
+  const playlistOpen = useUi((s) => s.playlistOpen);
+  const fullscreen = useUi((s) => s.fullscreen);
+  const togglePlaylist = useUi((s) => s.togglePlaylist);
+  const setPopoverOpen = useUi((s) => s.setPopoverOpen);
   const [menu, setMenu] = useState<Menu>(null);
 
   useEffect(() => {
-    ui.setPopoverOpen(menu !== null);
-  }, [menu, ui]);
+    setPopoverOpen(menu !== null);
+  }, [menu, setPopoverOpen]);
 
   const audios = p.tracks.filter((t) => t.type === "audio");
   const subs = p.tracks.filter((t) => t.type === "sub");
@@ -193,12 +200,12 @@ export function ControlBar() {
             </IconBtn>
           )}
 
-          <IconBtn title="Playlist (Tab)" onClick={() => ui.togglePlaylist()} active={ui.playlistOpen}>
+          <IconBtn title="Playlist (Tab)" onClick={() => togglePlaylist()} active={playlistOpen}>
             <IconList />
           </IconBtn>
 
           <IconBtn title="Tela cheia (F)" onClick={() => void toggleFullscreen()}>
-            {ui.fullscreen ? <IconExitFullscreen /> : <IconFullscreen />}
+            {fullscreen ? <IconExitFullscreen /> : <IconFullscreen />}
           </IconBtn>
         </div>
       </div>
