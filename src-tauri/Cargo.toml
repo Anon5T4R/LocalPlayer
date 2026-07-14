@@ -1,0 +1,40 @@
+[package]
+name = "localplayer"
+version = "0.1.0"
+description = "LocalPlayer — player de vídeo/áudio minimalista 100% offline (motor mpv)"
+authors = ["Taylor"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Anon5T4R/LocalPlayer"
+
+[lib]
+# O sufixo `_lib` evita conflito entre o nome da lib e o do binário no Windows
+# (https://github.com/rust-lang/cargo/issues/8519).
+name = "localplayer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+# Embed do vídeo no Windows: cria uma child window nativa sob a janela do Tauri
+# e passa o HWND dela pro mpv via `--wid`. Só no Windows — no Linux o mpv abre
+# em janela própria (Plano B), então nada disso entra no build do CI Ubuntu.
+# winapi (não a crate `windows`) de propósito: assinaturas C estáveis e simples
+# pra CreateWindowExW/SetWindowPos — menos superfície pra erro.
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = [
+    "winuser",
+    "libloaderapi",
+    "windef",
+    "minwindef",
+] }

@@ -1,0 +1,11 @@
+node_modules
+dist
+src-tauri/target
+src-tauri/gen/schemas
+
+# Runtime do mpv baixado pelos scripts (scripts/fetch-mpv.ps1/.sh) — nunca versionar.
+src-tauri/binaries/mpv/*
+!src-tauri/binaries/mpv/placeholder.txt
+
+.claude
+*.local

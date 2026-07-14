@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - platform: ubuntu-22.04
+            rust-target: x86_64-unknown-linux-gnu
+            bundles: appimage
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libxdo-dev \
+            build-essential \
+            mpv
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Baixar o mpv (runtime) — Windows
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: powershell -ExecutionPolicy Bypass -File scripts/fetch-mpv.ps1
+
+      - name: Confirmar o mpv (runtime) — Linux
+        if: matrix.platform == 'ubuntu-22.04'
+        run: bash scripts/fetch-mpv.sh
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "LocalPlayer ${{ github.ref_name }}"
+          releaseBody: |
+            ## LocalPlayer ${{ github.ref_name }}
+
+            Player de vídeo/áudio minimalista 100% offline, movido pelo **mpv**:
+            toca praticamente tudo, legendas embutidas e externas (.srt), faixas de
+            áudio, capítulos, velocidade com voz inteligível (scaletempo2), loop A-B,
+            playlist da pasta com ordem natural, lembra a posição de cada vídeo e
+            atalhos no estilo do mpv. Nada de nuvem.
+
+            No **Windows** o vídeo é embutido na janela do app (com opção de janela
+            separada nas Configurações). No **Linux** o app usa o **mpv do sistema**
+            (`apt install mpv`) e o controla numa janela própria.
+
+            ### Downloads
+            - **Windows — Instalador:** `*-setup.exe` (o mpv vai embutido)
+            - **Linux — AppImage:** `*.AppImage` (requer o `mpv` instalado no sistema)
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: false
+          args: --bundles ${{ matrix.bundles }}

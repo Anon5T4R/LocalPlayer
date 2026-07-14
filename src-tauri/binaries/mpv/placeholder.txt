@@ -1,0 +1,8 @@
+Os binários do mpv ficam aqui em tempo de execução, baixados por
+scripts/fetch-mpv.ps1 (Windows) — nunca versionados (ver .gitignore).
+
+No Linux o LocalPlayer usa o mpv do sistema (apt install mpv) na v0.1; por isso
+o fetch-mpv.sh só confere/instala nada e o app aponta pra `mpv` no PATH.
+
+Este placeholder existe porque o glob de resources do tauri.conf.json
+(`binaries/mpv/*`) não pode resolver pra uma pasta vazia no bundle.
