@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 
 import { basename } from "../lib/format";
+import { t } from "../lib/i18n";
 import { listDir } from "../lib/backend";
 import { AUDIO_EXTS, buildPlaylist, VIDEO_EXTS } from "../lib/naturalSort";
 import { usePlayer } from "../state/store";
@@ -18,8 +19,8 @@ export function HomeView() {
     const sel = await open({
       multiple: false,
       filters: [
-        { name: "Mídia", extensions: [...VIDEO_EXTS, ...AUDIO_EXTS] },
-        { name: "Todos", extensions: ["*"] },
+        { name: t("dlg.media"), extensions: [...VIDEO_EXTS, ...AUDIO_EXTS] },
+        { name: t("dlg.all"), extensions: ["*"] },
       ],
     });
     if (typeof sel === "string") void openFile(sel);
@@ -31,7 +32,7 @@ export function HomeView() {
     const files = await listDir(dir).catch(() => [] as string[]);
     const items = buildPlaylist(files);
     if (items.length === 0) {
-      toast("info", "Nenhum arquivo de mídia nessa pasta.");
+      toast("info", t("home.noMediaFolder"));
       return;
     }
     void openFiles(items);
@@ -39,7 +40,7 @@ export function HomeView() {
 
   return (
     <div className="home">
-      <button className="home-settings" onClick={() => setSettingsOpen(true)} title="Configurações">
+      <button className="home-settings" onClick={() => setSettingsOpen(true)} title={t("settings.title")}>
         <IconSettings />
       </button>
 
@@ -51,22 +52,22 @@ export function HomeView() {
           </svg>
         </div>
         <h1>LocalPlayer</h1>
-        <p className="home-sub">Seu player de vídeo e áudio — 100% local, sem nuvem.</p>
+        <p className="home-sub">{t("home.sub")}</p>
 
         <div className="home-actions">
           <button className="btn primary" onClick={pickFile}>
-            <IconFile /> Abrir arquivo
+            <IconFile /> {t("home.openFile")}
           </button>
           <button className="btn" onClick={pickFolder}>
-            <IconFolder /> Abrir pasta
+            <IconFolder /> {t("home.openFolder")}
           </button>
         </div>
-        <p className="home-hint">…ou arraste um arquivo pra cá.</p>
+        <p className="home-hint">{t("home.dragHint")}</p>
       </div>
 
       {recents.length > 0 && (
         <div className="home-recents">
-          <h2>Recentes</h2>
+          <h2>{t("home.recents")}</h2>
           <ul>
             {recents.map((p) => (
               <li key={p}>

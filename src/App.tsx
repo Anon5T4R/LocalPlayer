@@ -8,6 +8,7 @@ import { PlayerView } from "./components/PlayerView";
 import { SettingsModal } from "./components/SettingsModal";
 import { Toasts } from "./components/Toasts";
 import { getStartupFile, inTauri } from "./lib/backend";
+import { t } from "./lib/i18n";
 import { resolveShortcut, type Action } from "./lib/shortcuts";
 import { usePlayer } from "./state/store";
 import { useUi } from "./state/ui";
@@ -34,7 +35,7 @@ export default function App() {
     unsubs.push(
       listen("mpv-exit", () => {
         handleMpvExit();
-        useUi.getState().toast("info", "O mpv foi encerrado.");
+        useUi.getState().toast("info", t("app.mpvExited"));
       }),
     );
     unsubs.push(listen<string>("open-file", (e) => void openFile(e.payload)));
@@ -112,12 +113,10 @@ function MpvBanner() {
   const isWin = navigator.userAgent.includes("Windows");
   return (
     <div className="mpv-banner">
-      <strong>mpv não encontrado.</strong>{" "}
-      {isWin
-        ? "O runtime deveria vir com o instalador — reinstale pelo LocalHub."
-        : "No Linux o LocalPlayer usa o mpv do sistema: instale com "}
+      <strong>{t("mpv.notFound")}</strong>{" "}
+      {isWin ? t("mpv.reinstall") : t("mpv.linuxPre")}
       {!isWin && <code>sudo apt install mpv</code>}
-      {!isWin && " e reabra o app."}
+      {!isWin && t("mpv.linuxPost")}
     </div>
   );
 }

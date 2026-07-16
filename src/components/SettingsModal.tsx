@@ -1,6 +1,8 @@
+import { t } from "../lib/i18n";
 import type { ThemePref } from "../lib/types";
 import { usePlayer } from "../state/store";
 import { useUi } from "../state/ui";
+import LocalePicker from "./LocalePicker";
 
 export function SettingsModal() {
   const settings = usePlayer((s) => s.settings);
@@ -14,7 +16,7 @@ export function SettingsModal() {
     <div className="modal-backdrop" onMouseDown={() => setSettingsOpen(false)}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Configurações</h2>
+          <h2>{t("settings.title")}</h2>
           <button className="ibtn" onClick={() => setSettingsOpen(false)}>
             ✕
           </button>
@@ -22,7 +24,7 @@ export function SettingsModal() {
 
         <div className="modal-body">
           <label className="row">
-            <span>Lembrar a posição de cada vídeo</span>
+            <span>{t("set.rememberPos")}</span>
             <input
               type="checkbox"
               checked={settings.rememberPosition}
@@ -31,7 +33,7 @@ export function SettingsModal() {
           </label>
 
           <label className="row">
-            <span>Tocar o próximo da pasta ao terminar</span>
+            <span>{t("set.autoplayNext")}</span>
             <input
               type="checkbox"
               checked={settings.autoplayNext}
@@ -40,7 +42,7 @@ export function SettingsModal() {
           </label>
 
           <label className="row">
-            <span>Volume inicial</span>
+            <span>{t("set.defaultVolume")}</span>
             <span className="row-val">
               <input
                 type="range"
@@ -54,24 +56,28 @@ export function SettingsModal() {
           </label>
 
           <label className="row">
-            <span>Tema</span>
+            <span>{t("theme.title")}</span>
             <select
               value={settings.theme}
               onChange={(e) => void setSettings({ theme: e.target.value as ThemePref })}
             >
-              <option value="system">Sistema</option>
-              <option value="light">Claro</option>
-              <option value="dark">Escuro</option>
+              <option value="system">{t("theme.system")}</option>
+              <option value="light">{t("theme.light")}</option>
+              <option value="dark">{t("theme.dark")}</option>
             </select>
+          </label>
+
+          <label className="row">
+            <span>{t("lang.title")}</span>
+            <LocalePicker />
           </label>
 
           {isWin && (
             <label className="row">
               <span>
-                Embutir o vídeo na janela do app (experimental)
+                {t("set.embed")}
                 <small className="row-hint">
-                  {embedded ? "Agora: embutido (padrão)." : "Agora: janela própria do vídeo."} Em alguns
-                  sistemas o embed fica preto/instável — nesse caso, desmarque. Reinicia a reprodução ao trocar.
+                  {embedded ? t("set.embedNowOn") : t("set.embedNowOff")} {t("set.embedHint")}
                 </small>
               </span>
               <input
@@ -85,8 +91,8 @@ export function SettingsModal() {
           {!isWin && (
             <label className="row">
               <span>
-                Caminho do mpv
-                <small className="row-hint">Vazio = usa o mpv do PATH do sistema.</small>
+                {t("set.mpvPath")}
+                <small className="row-hint">{t("set.mpvPathHint")}</small>
               </span>
               <input
                 type="text"
@@ -101,8 +107,7 @@ export function SettingsModal() {
 
         <div className="modal-foot">
           <p className="shortcuts">
-            <strong>Atalhos:</strong> Espaço = play · ← → 5s · J/L 30s · ↑↓ volume · M mudo · F tela cheia · T
-            imersivo · N/P faixa · S print · [ ] velocidade · R loop A-B · Tab playlist · 0–9 pular %.
+            <strong>{t("set.shortcutsLabel")}</strong> {t("set.shortcutsBody")}
           </p>
         </div>
       </div>

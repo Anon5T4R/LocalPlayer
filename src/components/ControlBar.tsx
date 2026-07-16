@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { toggleFullscreen } from "../App";
 import { mpvAddSub } from "../lib/backend";
 import { fmtSpeed, fmtTime, fmtVolume } from "../lib/format";
+import { t as tr } from "../lib/i18n";
 import { trackLabel } from "../lib/mpvEvents";
 import { usePlayer } from "../state/store";
 import { useUi } from "../state/ui";
@@ -52,7 +53,7 @@ export function ControlBar() {
   async function addSub() {
     const sel = await open({
       multiple: false,
-      filters: [{ name: "Legendas", extensions: ["srt", "ass", "ssa", "vtt", "sub"] }],
+      filters: [{ name: tr("dlg.subtitles"), extensions: ["srt", "ass", "ssa", "vtt", "sub"] }],
     });
     if (typeof sel === "string") {
       await mpvAddSub(sel).catch(() => {});
@@ -78,13 +79,13 @@ export function ControlBar() {
 
       <div className="controls-row">
         <div className="controls-left">
-          <IconBtn title="Anterior (P)" onClick={() => p.prev()}>
+          <IconBtn title={tr("ctrl.prev")} onClick={() => p.prev()}>
             <IconPrev />
           </IconBtn>
-          <button className="play-btn" title="Play/Pause (Espaço)" onClick={() => p.togglePause()}>
+          <button className="play-btn" title={tr("ctrl.playpause")} onClick={() => p.togglePause()}>
             {p.paused ? <IconPlay size={26} /> : <IconPause size={26} />}
           </button>
-          <IconBtn title="Próximo (N)" onClick={() => p.next()}>
+          <IconBtn title={tr("ctrl.next")} onClick={() => p.next()}>
             <IconNext />
           </IconBtn>
 
@@ -97,7 +98,7 @@ export function ControlBar() {
 
         <div className="controls-right">
           <div className="vol">
-            <IconBtn title="Mudo (M)" onClick={() => p.toggleMute()}>
+            <IconBtn title={tr("ctrl.mute")} onClick={() => p.toggleMute()}>
               {p.muted || p.volume === 0 ? <IconMute /> : <IconVolume />}
             </IconBtn>
             <input
@@ -112,7 +113,7 @@ export function ControlBar() {
           </div>
 
           <MenuBtn
-            title={`Velocidade (${fmtSpeed(p.speed)})`}
+            title={tr("ctrl.speed", { speed: fmtSpeed(p.speed) })}
             active={p.speed !== 1}
             open={menu === "speed"}
             onToggle={() => setMenu(menu === "speed" ? null : "speed")}
@@ -128,7 +129,7 @@ export function ControlBar() {
 
           {audios.length > 0 && (
             <MenuBtn
-              title="Faixa de áudio"
+              title={tr("ctrl.audioTrack")}
               active={false}
               open={menu === "audio"}
               onToggle={() => setMenu(menu === "audio" ? null : "audio")}
@@ -147,14 +148,14 @@ export function ControlBar() {
           )}
 
           <MenuBtn
-            title="Legendas"
+            title={tr("ctrl.subtitles")}
             active={p.sid !== "no"}
             open={menu === "sub"}
             onToggle={() => setMenu(menu === "sub" ? null : "sub")}
             icon={<IconCaptions />}
           >
             <button className={p.sid === "no" ? "mi active" : "mi"} onClick={() => { p.setTrack("sid", "no"); setMenu(null); }}>
-              Desligado
+              {tr("ctrl.subOff")}
             </button>
             {subs.map((t) => (
               <button
@@ -166,13 +167,13 @@ export function ControlBar() {
               </button>
             ))}
             <button className="mi mi-add" onClick={addSub}>
-              + Carregar arquivo…
+              {tr("ctrl.loadSubFile")}
             </button>
           </MenuBtn>
 
           {p.chapters.length > 0 && (
             <MenuBtn
-              title="Capítulos"
+              title={tr("ctrl.chapters")}
               active={false}
               open={menu === "chapters"}
               onToggle={() => setMenu(menu === "chapters" ? null : "chapters")}
@@ -190,21 +191,21 @@ export function ControlBar() {
             </MenuBtn>
           )}
 
-          <IconBtn title="Loop A-B (R)" onClick={cycleAb} active={abState !== "off"}>
+          <IconBtn title={tr("ctrl.abLoop")} onClick={cycleAb} active={abState !== "off"}>
             <IconLoop />
           </IconBtn>
 
           {p.hasVideo && (
-            <IconBtn title="Print da tela (S)" onClick={() => p.screenshot()}>
+            <IconBtn title={tr("ctrl.screenshot")} onClick={() => p.screenshot()}>
               <IconCamera />
             </IconBtn>
           )}
 
-          <IconBtn title="Playlist (Tab)" onClick={() => togglePlaylist()} active={playlistOpen}>
+          <IconBtn title={tr("ctrl.playlist")} onClick={() => togglePlaylist()} active={playlistOpen}>
             <IconList />
           </IconBtn>
 
-          <IconBtn title="Tela cheia (F)" onClick={() => void toggleFullscreen()}>
+          <IconBtn title={tr("ctrl.fullscreen")} onClick={() => void toggleFullscreen()}>
             {fullscreen ? <IconExitFullscreen /> : <IconFullscreen />}
           </IconBtn>
         </div>

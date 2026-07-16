@@ -1,6 +1,7 @@
 // Interpretação dos eventos crus do mpv (JSON IPC) em sinais normalizados que a
 // store aplica. Puro e testado — o Rust só repassa as linhas, a semântica é aqui.
 
+import { t as tr } from "./i18n";
 import type { Chapter, Track, TrackType } from "./types";
 
 /** Propriedades que observamos no mpv, com um id estável cada. */
@@ -90,7 +91,7 @@ export function parseChapters(data: unknown): Chapter[] {
     if (!raw || typeof raw !== "object") continue;
     const c = raw as Record<string, unknown>;
     out.push({
-      title: typeof c.title === "string" && c.title ? c.title : `Capítulo ${i + 1}`,
+      title: typeof c.title === "string" && c.title ? c.title : tr("chapter.n", { n: i + 1 }),
       time: typeof c.time === "number" ? c.time : 0,
     });
   }
@@ -113,7 +114,7 @@ export function trackLabel(t: Track): string {
   const parts: string[] = [];
   if (t.lang) parts.push(t.lang.toUpperCase());
   if (t.title) parts.push(t.title);
-  if (parts.length === 0) parts.push(`Faixa ${t.id}`);
-  if (t.external) parts.push("(externa)");
+  if (parts.length === 0) parts.push(tr("track.n", { n: t.id }));
+  if (t.external) parts.push(tr("track.external"));
   return parts.join(" · ");
 }

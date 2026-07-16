@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import * as B from "../lib/backend";
 import { stem } from "../lib/format";
+import { t as tr } from "../lib/i18n";
 import {
   hasRealVideo,
   interpretEvent,
@@ -220,7 +221,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
       await B.mpvSetMute(muted).catch(() => {});
       return true;
     } catch (e) {
-      useUi.getState().toast("error", `Não deu pra iniciar o mpv: ${String(e)}`);
+      useUi.getState().toast("error", tr("err.mpvStart", { e: String(e) }));
       set({ ready: "no-mpv" });
       return false;
     }
@@ -228,7 +229,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
 
   async openFile(path) {
     if (!isMedia(path)) {
-      useUi.getState().toast("error", "Formato não reconhecido como mídia.");
+      useUi.getState().toast("error", tr("err.notMedia"));
       return;
     }
     let items: string[] = [];
@@ -247,7 +248,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   async openFiles(paths) {
     const media = paths.filter(isMedia);
     if (media.length === 0) {
-      useUi.getState().toast("error", "Nenhum arquivo de mídia reconhecido.");
+      useUi.getState().toast("error", tr("err.noMedia"));
       return;
     }
     if (media.length === 1) {
@@ -279,7 +280,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
       ab: { a: null, b: null },
     });
     await B.mpvLoad(path).catch((e) => {
-      useUi.getState().toast("error", `Falha ao abrir: ${String(e)}`);
+      useUi.getState().toast("error", tr("err.openFail", { e: String(e) }));
     });
   },
 
@@ -376,7 +377,7 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   cycleSub() {
     const subs = get().tracks.filter((t) => t.type === "sub");
     if (subs.length === 0) {
-      useUi.getState().toast("info", "Sem legendas nesta mídia.");
+      useUi.getState().toast("info", tr("toast.noSubs"));
       return;
     }
     const cur = get().sid;
@@ -390,20 +391,20 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   },
   screenshot() {
     void B.mpvScreenshot();
-    useUi.getState().toast("success", "Print salvo (pasta de imagens do mpv).");
+    useUi.getState().toast("success", tr("toast.screenshotSaved"));
   },
   setAbA() {
     set({ ab: { a: get().position, b: get().ab.b } });
-    useUi.getState().toast("info", "Ponto A do loop marcado.");
+    useUi.getState().toast("info", tr("toast.abA"));
   },
   setAbB() {
     const a = get().ab.a;
     if (a === null) {
-      useUi.getState().toast("info", "Marque o ponto A primeiro (tecla R).");
+      useUi.getState().toast("info", tr("toast.abNeedA"));
       return;
     }
     set({ ab: { a, b: get().position } });
-    useUi.getState().toast("success", "Loop A-B ativo.");
+    useUi.getState().toast("success", tr("toast.abOn"));
   },
   clearAb() {
     set({ ab: { a: null, b: null } });

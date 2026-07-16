@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
+import { setLocale } from "../i18n";
 import {
   hasRealVideo,
   interpretEvent,
@@ -7,6 +8,10 @@ import {
   parseTracks,
   trackLabel,
 } from "../mpvEvents";
+
+// Os rótulos GERADOS (Capítulo/Faixa) saem no idioma da UI; fixa em pt pro teste
+// ser determinístico independentemente do navigator.language do ambiente.
+beforeAll(() => setLocale("pt"));
 
 describe("interpretEvent", () => {
   it("property-change", () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { stageRect } from "../lib/backend";
+import { t } from "../lib/i18n";
 import { usePlayer } from "../state/store";
 import { useUi } from "../state/ui";
 import { ControlBar } from "./ControlBar";
@@ -90,13 +91,13 @@ export function PlayerView() {
     >
       {!chromeHidden && (
         <div className="topbar">
-          <button className="topbar-back" onClick={() => goHome()} title="Início">
-            ‹ Início
+          <button className="topbar-back" onClick={() => goHome()} title={t("player.home")}>
+            ‹ {t("player.home")}
           </button>
           <div className="topbar-title" title={title}>
             {title || "LocalPlayer"}
           </div>
-          <button className="ibtn" title="Configurações" onClick={() => setSettingsOpen(true)}>
+          <button className="ibtn" title={t("settings.title")} onClick={() => setSettingsOpen(true)}>
             <IconSettings size={18} />
           </button>
         </div>
@@ -106,10 +107,8 @@ export function PlayerView() {
         <div className="stage" ref={stageRef} onClick={() => usePlayer.getState().togglePause()}>
           {!embedded && (
             <div className="stage-msg">
-              <p>🎬 O vídeo está tocando na janela do player.</p>
-              <p className="stage-sub">
-                Controle por aqui (playlist, legendas, velocidade…) ou direto na janela do vídeo.
-              </p>
+              <p>{t("player.extWindow")}</p>
+              <p className="stage-sub">{t("player.extWindowSub")}</p>
             </div>
           )}
           {embedded && !hasVideo && (
@@ -118,7 +117,7 @@ export function PlayerView() {
                 <IconAudio size={64} />
               </div>
               <div className="np-title">{title}</div>
-              <div className="np-sub">{paused ? "Pausado" : "Tocando"}</div>
+              <div className="np-sub">{paused ? t("player.paused") : t("player.playing")}</div>
             </div>
           )}
         </div>
