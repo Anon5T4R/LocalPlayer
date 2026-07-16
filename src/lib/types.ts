@@ -24,9 +24,11 @@ export interface Settings {
   rememberPosition: boolean;
   defaultVolume: number; // 0–130
   defaultSpeed: number;
-  /** EXPERIMENTAL: embutir o vídeo na janela do app (Windows). O padrão é a
-   * janela própria do mpv — o embed via child window briga com a composição do
-   * WebView2 em alguns sistemas (tela preta/instável; visto na máquina do João). */
+  /** Embutir o vídeo na janela do app (Windows). Default LIGADO desde que o
+   * embed via child window foi validado (3 testes em 2 máquinas do João,
+   * 2026-07-16). Segue marcado como "experimental" na UI: em alguns sistemas o
+   * child window pode brigar com a composição do WebView2 (tela preta/instável)
+   * — nesse caso, desmarcar cai na janela própria do mpv. */
   embedVideo: boolean;
   mpvPath: string; // override do executável (Linux/config)
   theme: ThemePref;
@@ -37,7 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rememberPosition: true,
   defaultVolume: 90,
   defaultSpeed: 1,
-  embedVideo: false,
+  embedVideo: true,
   mpvPath: "",
   theme: "system",
   autoplayNext: true,

@@ -70,8 +70,8 @@ export function SettingsModal() {
               <span>
                 Embutir o vídeo na janela do app (experimental)
                 <small className="row-hint">
-                  {embedded ? "Agora: embutido." : "Agora: janela própria do vídeo (recomendado)."} Em alguns
-                  sistemas o embed fica preto/instável. Reinicia a reprodução ao trocar.
+                  {embedded ? "Agora: embutido (padrão)." : "Agora: janela própria do vídeo."} Em alguns
+                  sistemas o embed fica preto/instável — nesse caso, desmarque. Reinicia a reprodução ao trocar.
                 </small>
               </span>
               <input
