@@ -18,7 +18,15 @@ export interface Chapter {
 }
 
 export type Repeat = "off" | "one" | "all";
-export type ThemePref = "system" | "light" | "dark";
+export type ThemePref =
+  | "system"
+  | "light"
+  | "dark"
+  | "nature"
+  | "darkblue"
+  | "calmgreen"
+  | "pastelpink"
+  | "punkprincess";
 
 export interface Settings {
   rememberPosition: boolean;

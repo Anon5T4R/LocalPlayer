@@ -41,6 +41,11 @@ const pt = {
   "theme.system": "Sistema",
   "theme.light": "Claro",
   "theme.dark": "Escuro",
+  "theme.nature": "Natureza",
+  "theme.darkblue": "Azul escuro",
+  "theme.calmgreen": "Verde calmo",
+  "theme.pastelpink": "Rosa pastel",
+  "theme.punkprincess": "PunkPrincess",
 
   // --- banner do mpv ausente ---
   "mpv.notFound": "mpv não encontrado.",
@@ -137,6 +142,11 @@ const en: Record<MessageKey, string> = {
   "theme.system": "System",
   "theme.light": "Light",
   "theme.dark": "Dark",
+  "theme.nature": "Nature",
+  "theme.darkblue": "Dark blue",
+  "theme.calmgreen": "Calm green",
+  "theme.pastelpink": "Pastel pink",
+  "theme.punkprincess": "PunkPrincess",
 
   "mpv.notFound": "mpv not found.",
   "mpv.reinstall": "The runtime should ship with the installer — reinstall it from LocalHub.",
@@ -221,6 +231,11 @@ const es: Record<MessageKey, string> = {
   "theme.system": "Sistema",
   "theme.light": "Claro",
   "theme.dark": "Oscuro",
+  "theme.nature": "Naturaleza",
+  "theme.darkblue": "Azul oscuro",
+  "theme.calmgreen": "Verde tranquilo",
+  "theme.pastelpink": "Rosa pastel",
+  "theme.punkprincess": "PunkPrincess",
 
   "mpv.notFound": "mpv no encontrado.",
   "mpv.reinstall": "El runtime debería venir con el instalador — reinstálalo desde LocalHub.",

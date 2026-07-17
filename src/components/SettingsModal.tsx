@@ -64,6 +64,11 @@ export function SettingsModal() {
               <option value="system">{t("theme.system")}</option>
               <option value="light">{t("theme.light")}</option>
               <option value="dark">{t("theme.dark")}</option>
+              <option value="nature">{t("theme.nature")}</option>
+              <option value="darkblue">{t("theme.darkblue")}</option>
+              <option value="calmgreen">{t("theme.calmgreen")}</option>
+              <option value="pastelpink">{t("theme.pastelpink")}</option>
+              <option value="punkprincess">{t("theme.punkprincess")}</option>
             </select>
           </label>
 

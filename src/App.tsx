@@ -57,10 +57,14 @@ export default function App() {
     };
   }, [boot, applyRawEvent, handleMpvExit, openFile, openFiles]);
 
-  // Tema (claro/escuro/sistema).
+  // Tema (claro/escuro/sistema + temas nomeados).
   useEffect(() => {
     const root = document.documentElement;
     const apply = () => {
+      if (theme !== "system" && theme !== "light" && theme !== "dark") {
+        root.setAttribute("data-theme", theme);
+        return;
+      }
       const dark =
         theme === "dark" ||
         (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);

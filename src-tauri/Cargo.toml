@@ -1,6 +1,6 @@
 [package]
 name = "localplayer"
-version = "0.2.1"
+version = "0.3.0"
 description = "LocalPlayer — player de vídeo/áudio minimalista 100% offline (motor mpv)"
 authors = ["Taylor"]
 edition = "2021"
