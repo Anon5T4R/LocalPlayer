@@ -1,82 +1,88 @@
+/* Superfícies suavizadas: branco puro rouba o foco do accent, então o painel
+   vira off-white tingido com o matiz do próprio --bg (L* ~98) e o --bg desce
+   ~3 L*. Só o L* muda — a escada panel-2 < bg < panel deste app é preservada.
+   O --stage (letterbox do vídeo) NÃO é fundão: continua escuro, só troca o
+   preto puro por um quase-preto tingido, igual aos temas nomeados já fazem. */
 :root {
-  --bg: #f4f5f7;
-  --panel: #ffffff;
-  --panel-2: #eef0f3;
+  --bg: #ebecee;
+  --panel: #f8f9fb;
+  --panel-2: #e5e7ea;
   --text: #1b1d21;
   --muted: #6b7280;
-  --border: #dfe3e8;
+  --border: #d6dadf;
   --accent: #e11d48;
   --accent-soft: #fecdd3;
-  --stage: #000000;
+  --stage: #0c0d0f;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
+/* Escuro: quase-preto (L* 4) sobe ~4.5 L* mantendo matiz. O palco segue escuro. */
 :root[data-theme="dark"] {
-  --bg: #0e0f12;
-  --panel: #17191e;
-  --panel-2: #1e2127;
+  --bg: #18191b;
+  --panel: #202227;
+  --panel-2: #272a31;
   --text: #eceef2;
   --muted: #9aa1ac;
-  --border: #2a2e36;
+  --border: #343840;
   --accent: #fb7185;
   --accent-soft: #4c1d24;
-  --stage: #000000;
+  --stage: #0b0d10;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 :root[data-theme="nature"] {
-  --bg: #f5f7f2;
-  --panel: #ffffff;
-  --panel-2: #eef2ea;
+  --bg: #eef1e9;
+  --panel: #f8faf5;
+  --panel-2: #e4eade;
   --text: #2e3a2e;
-  --muted: #6f7d6f;
-  --border: #e2e8dd;
+  --muted: #697669;
+  --border: #dbe3d4;
   --accent: #7a9e7e;
   --accent-soft: #e6efe1;
   --stage: #0c110c;
   --shadow: 0 10px 30px rgba(60, 70, 60, 0.14);
 }
 :root[data-theme="darkblue"] {
-  --bg: #0d1520;
-  --panel: #131f30;
-  --panel-2: #1a2942;
+  --bg: #16202e;
+  --panel: #1d2a3c;
+  --panel-2: #26374e;
   --text: #e2e8f0;
   --muted: #8595ad;
-  --border: #223049;
+  --border: #2d3f59;
   --accent: #3b82f6;
   --accent-soft: #1e3a5f;
   --stage: #050a12;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
 }
 :root[data-theme="calmgreen"] {
-  --bg: #f2f5f1;
-  --panel: #ffffff;
-  --panel-2: #e9efe7;
+  --bg: #eaf0e9;
+  --panel: #f7faf6;
+  --panel-2: #dfe8dd;
   --text: #24302a;
-  --muted: #6a7a6f;
-  --border: #dde6dc;
+  --muted: #67776c;
+  --border: #d5e0d3;
   --accent: #4f7d5e;
   --accent-soft: #dcebd9;
   --stage: #0a100b;
   --shadow: 0 10px 30px rgba(60, 70, 60, 0.14);
 }
 :root[data-theme="pastelpink"] {
-  --bg: #fdf4f7;
-  --panel: #ffffff;
-  --panel-2: #f9eaf0;
+  --bg: #f8ebf0;
+  --panel: #fdf6f9;
+  --panel-2: #f2dde6;
   --text: #3a2a30;
-  --muted: #8a7580;
-  --border: #f2dfe7;
+  --muted: #806d77;
+  --border: #ecd3de;
   --accent: #e8799f;
   --accent-soft: #fbe4ee;
   --stage: #140a0f;
   --shadow: 0 10px 30px rgba(60, 70, 60, 0.14);
 }
 :root[data-theme="punkprincess"] {
-  --bg: #120a1a;
-  --panel: #1a0f26;
-  --panel-2: #241533;
+  --bg: #1c1228;
+  --panel: #251733;
+  --panel-2: #32204a;
   --text: #f0e6ff;
   --muted: #9a86b5;
-  --border: #2c1c3d;
+  --border: #3a2850;
   --accent: #ff2d95;
   --accent-soft: #33143a;
   --stage: #08030d;
