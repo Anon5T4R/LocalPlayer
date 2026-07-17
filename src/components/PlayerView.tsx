@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import { toggleFullscreen } from "../App";
 import { stageRect } from "../lib/backend";
 import { t } from "../lib/i18n";
 import { usePlayer } from "../state/store";
@@ -18,7 +19,6 @@ export function PlayerView() {
   const immersive = useUi((s) => s.immersive);
   const controlsVisible = useUi((s) => s.controlsVisible);
   const playlistOpen = useUi((s) => s.playlistOpen);
-  const setImmersive = useUi((s) => s.setImmersive);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const setControlsVisible = useUi((s) => s.setControlsVisible);
 
@@ -82,12 +82,14 @@ export function PlayerView() {
 
   const chromeHidden = immersive && !controlsVisible;
 
+  // Duplo-clique ALTERNA fullscreen (padrão de players). toggleFullscreen já
+  // mantém ui.fullscreen + immersive em sincronia com o F e o botão da barra.
   return (
     <div
       className="player"
       data-chrome={chromeHidden ? "hidden" : "shown"}
       data-playlist={playlistOpen && !chromeHidden ? "open" : "closed"}
-      onDoubleClick={() => setImmersive(!immersive)}
+      onDoubleClick={() => void toggleFullscreen()}
     >
       {!chromeHidden && (
         <div className="topbar">
