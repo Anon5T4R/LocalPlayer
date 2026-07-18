@@ -22,7 +22,10 @@ $ProgressPreference = "SilentlyContinue"
 # copiar tag e nome do asset (o SEM `-v3`: v3 exige CPU x86-64-v3, que corta
 # máquinas mais antigas), baixar, `sha256sum`, trocar as constantes.
 # ---------------------------------------------------------------------------
-$mpvTag = "2026-07-17-94335ab87a"
+# Tag do upstream (proveniencia; a URL usa o espelho). Aqui o espelho nao e
+# conforto e sim NECESSIDADE: o zhongfly guarda so 45 releases -- menos de UM MES
+# -- entao fixar no upstream vira 404 em semanas.
+$mpvUpstreamTag = "2026-07-17-94335ab87a"
 $mpvAsset = "mpv-x86_64-20260717-git-94335ab87a.7z"
 $mpvSha256 = "7cc6b4926627ef46e82ba7ee8b037bf7c9e3cdf9f1dd6d8b7798044b13be7eab"
 
@@ -35,7 +38,7 @@ if (Test-Path (Join-Path $mpvDir "mpv.exe")) {
     exit 0
 }
 
-$url = "https://github.com/zhongfly/mpv-winbuild/releases/download/$mpvTag/$mpvAsset"
+$url = "https://github.com/Anon5T4R/Local-runtimes/releases/download/v1/$mpvAsset"
 Write-Host "Baixando $url ..."
 $pkg = Join-Path $env:TEMP $mpvAsset
 Invoke-WebRequest -Uri $url -OutFile $pkg
@@ -58,7 +61,7 @@ if ($LASTEXITCODE -ne 0) { throw "7z falhou ao extrair $mpvAsset" }
 Remove-Item $pkg -Force
 
 $hit = Get-ChildItem -Path $extract -Recurse -Filter "mpv.exe" | Select-Object -First 1
-if (-not $hit) { throw "mpv.exe não encontrado dentro do pacote ($mpvTag)" }
+if (-not $hit) { throw "mpv.exe não encontrado dentro do pacote ($mpvUpstreamTag)" }
 Copy-Item $hit.FullName -Destination (Join-Path $mpvDir "mpv.exe") -Force
 
 # O mpv precisa das dlls que vierem ao lado (alguns builds são estáticos, outros não).
@@ -66,4 +69,4 @@ Get-ChildItem -Path $hit.Directory -Filter "*.dll" -ErrorAction SilentlyContinue
     ForEach-Object { Copy-Item $_.FullName -Destination $mpvDir -Force }
 
 Remove-Item $extract -Recurse -Force
-Write-Host "Instalado em $mpvDir ($mpvTag)"
+Write-Host "Instalado em $mpvDir ($mpvUpstreamTag)"
