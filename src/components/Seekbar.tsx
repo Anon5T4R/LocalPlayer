@@ -31,7 +31,13 @@ export function Seekbar({ duration, position, buffered, chapters, onSeek }: Prop
 
   function onDown(e: React.PointerEvent) {
     if (dur <= 0) return;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Blindada: com pointer não-ativo (evento sintético) o setPointerCapture
+    // lança NotFoundError e mataria o seek inteiro.
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* segue sem captura */
+    }
     setDrag(timeAt(e.clientX));
   }
   function onMove(e: React.PointerEvent) {
