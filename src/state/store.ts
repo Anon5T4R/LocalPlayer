@@ -1,8 +1,18 @@
 import { create } from "zustand";
 
 import * as B from "../lib/backend";
-import { stem } from "../lib/format";
+import { fmtTime, stem } from "../lib/format";
 import { t as tr } from "../lib/i18n";
+import {
+  parseResume,
+  removeResume,
+  RESUME_MAX_FRAC,
+  resumeTargetMs,
+  shouldResume,
+  upsertResume,
+  type ResumeMap,
+} from "../lib/resume";
+import { THUMB_COUNT } from "../lib/thumbs";
 import {
   hasRealVideo,
   interpretEvent,
@@ -100,6 +110,9 @@ interface PlayerStore {
   shuffle: boolean;
   recents: string[];
 
+  /** Miniaturas da timeline do arquivo atual (null = sem vídeo/ainda nada). */
+  thumbs: { path: string; count: number; files: (string | null)[] } | null;
+
   // ações
   boot(): Promise<void>;
   setSettings(patch: Partial<Settings>): Promise<void>;
@@ -133,9 +146,25 @@ interface PlayerStore {
   applyRawEvent(raw: unknown): void;
   handleMpvExit(): void;
   goHome(): void;
+
+  /** Miniatura pronta (evento `thumbs-ready` do Rust). */
+  applyThumbReady(p: { path: string; index: number; file: string; count: number }): void;
+  /** Salva a posição atual no resume AGORA (troca de arquivo, home, fechamento). */
+  savePositionNow(): void;
 }
 
 const sess = loadSession();
+
+// ---- resume próprio (fora do estado React: nada aqui re-renderiza nada) ----
+let resumeMap: ResumeMap = {};
+let resumeLoaded = false;
+let lastResumeSaveTs = 0;
+/** Arquivo pra quem já disparamos a geração de thumbs (dedup do gatilho). */
+let thumbsStartedFor = "";
+
+function persistResume() {
+  void B.resumeSave(JSON.stringify(resumeMap)).catch(() => {});
+}
 
 export const usePlayer = create<PlayerStore>((set, get) => ({
   settings: loadSettings(),
@@ -168,6 +197,8 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   repeat: "off",
   shuffle: false,
   recents: loadRecents(),
+
+  thumbs: null,
 
   async boot() {
     const { settings } = get();
@@ -205,11 +236,19 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   async ensureStarted() {
     if (get().started) return true;
     const { settings, volume, muted, speed } = get();
+    // Carrega o resume próprio ANTES do primeiro arquivo tocar (o file-loaded
+    // consulta o mapa). Uma vez por sessão; falha = mapa vazio, sem drama.
+    if (!resumeLoaded) {
+      resumeLoaded = true;
+      resumeMap = parseResume(await B.resumeLoad().catch(() => "{}"));
+    }
     try {
       const r = await B.mpvStart({
         volume,
         speed: speed || settings.defaultSpeed,
-        remember: settings.rememberPosition,
+        // SEMPRE false: o resume agora é NOSSO (lib/resume.ts salva a cada 5s,
+        // não só no quit). O watch-later do mpv ligado junto duplicaria o seek.
+        remember: false,
         separateWindow: !settings.embedVideo,
         mpvPath: settings.mpvPath,
       });
@@ -265,10 +304,14 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   async playIndex(i) {
     const { items } = get();
     if (i < 0 || i >= items.length) return;
+    // Troca de arquivo: a posição do que estava tocando entra no resume já.
+    get().savePositionNow();
+    thumbsStartedFor = "";
     const path = items[i];
     set({
       index: i,
       path,
+      thumbs: null,
       recents: pushRecent(path, get().recents),
       title: stem(path),
       position: 0,
@@ -310,6 +353,12 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
   onEndFile(reason) {
     if (reason !== "eof") return; // stop/quit/error não avançam
     const { repeat, index, items, shuffle, settings } = get();
+    // Assistiu até o fim: some do resume (reabrir recomeça do zero).
+    const done = get().path;
+    if (done && done in resumeMap) {
+      resumeMap = removeResume(resumeMap, done);
+      persistResume();
+    }
     if (repeat === "one") {
       void get().playIndex(index);
       return;
@@ -422,9 +471,18 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
       case "endFile":
         get().onEndFile(sig.reason);
         return;
-      case "fileLoaded":
+      case "fileLoaded": {
         set({ paused: false });
+        // Resume próprio: retoma de posMs-2s se valer a pena (lib/resume.ts).
+        // Usa a duração SALVA — a atual pode ainda não ter chegado do mpv.
+        const { path, settings } = get();
+        const e = resumeMap[path];
+        if (settings.rememberPosition && e && shouldResume(e)) {
+          get().seekAbs(resumeTargetMs(e.posMs) / 1000);
+          useUi.getState().toast("info", tr("toast.resume", { time: fmtTime(e.posMs / 1000) }));
+        }
         return;
+      }
       case "prop":
         applyProp(sig.name, sig.data, set, get);
         return;
@@ -439,8 +497,44 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
 
   goHome() {
     // Volta pra tela inicial sem matar o mpv (ele fica ocioso). Para a mídia atual.
+    get().savePositionNow();
+    thumbsStartedFor = "";
+    void B.thumbsCancel().catch(() => {});
     if (get().started) void B.mpvCommand(["stop"]);
-    set({ index: -1, path: "", title: "", position: 0, duration: 0, paused: true });
+    set({ index: -1, path: "", title: "", position: 0, duration: 0, paused: true, thumbs: null });
+  },
+
+  applyThumbReady(p) {
+    const t = get().thumbs;
+    // Evento de arquivo antigo (geração cancelada tarde) não suja o atual.
+    if (!t || t.path !== p.path || p.index < 0 || p.index >= t.count) return;
+    if (t.files[p.index] === p.file) return;
+    const files = t.files.slice();
+    files[p.index] = p.file;
+    set({ thumbs: { ...t, files } });
+  },
+
+  savePositionNow() {
+    const s = get();
+    if (!s.settings.rememberPosition || !s.path || s.duration <= 0) return;
+    lastResumeSaveTs = Date.now();
+    if (s.position >= s.duration * RESUME_MAX_FRAC) {
+      // Já no finzinho = assistido: remove em vez de salvar (senão o "próximo"
+      // depois do eof re-salvava pos≈duração e desfazia a remoção do onEndFile).
+      if (s.path in resumeMap) {
+        resumeMap = removeResume(resumeMap, s.path);
+        persistResume();
+      }
+      return;
+    }
+    resumeMap = upsertResume(
+      resumeMap,
+      s.path,
+      Math.round(s.position * 1000),
+      Math.round(s.duration * 1000),
+      lastResumeSaveTs,
+    );
+    persistResume();
   },
 }));
 
@@ -455,11 +549,29 @@ function persistSession(s: { volume: number; muted: boolean }) {
 type SetFn = (partial: Partial<PlayerStore>) => void;
 type GetFn = () => PlayerStore;
 
+/** Dispara a geração de thumbs quando dá: precisa de caminho + duração + vídeo
+ *  de verdade (áudio não tem o que miniaturar). `duration` e `track-list`
+ *  chegam do mpv em qualquer ordem — os dois chamam aqui, o primeiro com o
+ *  conjunto completo vence, o dedup segura o resto. */
+function maybeStartThumbs(get: GetFn, set: SetFn) {
+  const s = get();
+  if (!s.path || s.duration <= 0 || !s.hasVideo) return;
+  if (thumbsStartedFor === s.path) return;
+  thumbsStartedFor = s.path;
+  set({ thumbs: { path: s.path, count: THUMB_COUNT, files: Array(THUMB_COUNT).fill(null) } });
+  void B.thumbsStart(s.path, Math.round(s.duration * 1000), s.settings.mpvPath).catch(() => {
+    // Sem thumbs (mpv sumiu? arquivo esquisito?): tooltip fica só com o tempo.
+  });
+}
+
 function applyProp(name: string, data: unknown, set: SetFn, get: GetFn) {
   switch (name) {
     case "time-pos": {
       const pos = typeof data === "number" ? data : 0;
       set({ position: pos });
+      // Resume: o time-pos só pinga enquanto REPRODUZ, então "salvar a cada 5s
+      // de reprodução" é salvar aqui, com trava de relógio.
+      if (Date.now() - lastResumeSaveTs >= 5000) get().savePositionNow();
       // Aplica o loop A-B.
       const { ab } = get();
       if (ab.a !== null && ab.b !== null && pos >= ab.b) {
@@ -469,6 +581,7 @@ function applyProp(name: string, data: unknown, set: SetFn, get: GetFn) {
     }
     case "duration":
       set({ duration: typeof data === "number" ? data : 0 });
+      maybeStartThumbs(get, set);
       return;
     case "pause":
       set({ paused: data === true });
@@ -491,6 +604,7 @@ function applyProp(name: string, data: unknown, set: SetFn, get: GetFn) {
     case "track-list": {
       const tracks = parseTracks(data);
       set({ tracks, hasVideo: hasRealVideo(tracks) });
+      maybeStartThumbs(get, set);
       return;
     }
     case "chapter-list":

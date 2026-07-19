@@ -56,6 +56,15 @@ export const stageRect = (
   visible: boolean,
 ) => cmd<void>("stage_rect", { seq: ++stageSeq, x, y, w, h, visible });
 
+// ---- resume próprio (app_data/resume.json; lógica em lib/resume.ts) ----
+export const resumeLoad = () => cmd<string>("resume_load");
+export const resumeSave = (data: string) => cmd<void>("resume_save", { data });
+
+// ---- miniaturas da timeline (thumbs.rs; eventos `thumbs-ready`) ----
+export const thumbsStart = (path: string, durationMs: number, mpvPath: string) =>
+  cmd<string>("thumbs_start", { path, durationMs, overridePath: mpvPath });
+export const thumbsCancel = () => cmd<void>("thumbs_cancel");
+
 // ---- mpv: comando cru ----
 export const mpvCommand = (args: unknown[]) => cmd<void>("mpv_command", { args });
 

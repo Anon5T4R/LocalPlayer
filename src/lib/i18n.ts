@@ -79,7 +79,9 @@ const pt = {
 
   // --- ControlBar (títulos/menus) ---
   "ctrl.prev": "Anterior (P)",
+  "ctrl.back10": "Voltar 10s (J = 30s)",
   "ctrl.playpause": "Play/Pause (Espaço)",
+  "ctrl.fwd10": "Avançar 10s (L = 30s)",
   "ctrl.next": "Próximo (N)",
   "ctrl.mute": "Mudo (M)",
   "ctrl.speed": "Velocidade ({speed})",
@@ -125,6 +127,7 @@ const pt = {
   "toast.abA": "Ponto A do loop marcado.",
   "toast.abNeedA": "Marque o ponto A primeiro (tecla R).",
   "toast.abOn": "Loop A-B ativo.",
+  "toast.resume": "Continuando de {time}",
 
   // --- rótulos GERADOS (mpvEvents) ---
   "track.n": "Faixa {n}",
@@ -174,7 +177,9 @@ const en: Record<MessageKey, string> = {
   "player.playing": "Playing",
 
   "ctrl.prev": "Previous (P)",
+  "ctrl.back10": "Back 10s (J = 30s)",
   "ctrl.playpause": "Play/Pause (Space)",
+  "ctrl.fwd10": "Forward 10s (L = 30s)",
   "ctrl.next": "Next (N)",
   "ctrl.mute": "Mute (M)",
   "ctrl.speed": "Speed ({speed})",
@@ -217,6 +222,7 @@ const en: Record<MessageKey, string> = {
   "toast.abA": "Loop point A set.",
   "toast.abNeedA": "Set point A first (R key).",
   "toast.abOn": "A-B loop active.",
+  "toast.resume": "Resuming from {time}",
 
   "track.n": "Track {n}",
   "track.external": "(external)",
@@ -263,7 +269,9 @@ const es: Record<MessageKey, string> = {
   "player.playing": "Reproduciendo",
 
   "ctrl.prev": "Anterior (P)",
+  "ctrl.back10": "Retroceder 10s (J = 30s)",
   "ctrl.playpause": "Play/Pause (Espacio)",
+  "ctrl.fwd10": "Avanzar 10s (L = 30s)",
   "ctrl.next": "Siguiente (N)",
   "ctrl.mute": "Silencio (M)",
   "ctrl.speed": "Velocidad ({speed})",
@@ -306,6 +314,7 @@ const es: Record<MessageKey, string> = {
   "toast.abA": "Punto A del bucle marcado.",
   "toast.abNeedA": "Marca primero el punto A (tecla R).",
   "toast.abOn": "Bucle A-B activo.",
+  "toast.resume": "Continuando desde {time}",
 
   "track.n": "Pista {n}",
   "track.external": "(externa)",

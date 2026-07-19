@@ -37,6 +37,38 @@ export const IconNext = ({ size, style }: P) => (
     <path d="M15 5v14h2V5zm-2 7L4 5v14z" />
   </svg>
 );
+export const IconBack10 = ({ size, style }: P) => (
+  <svg viewBox="0 0 24 24" style={{ ...base(size), ...style }}>
+    <path d="M5 12a7 7 0 1 0 7-7H8" />
+    <path d="M10.5 2.5L8 5l2.5 2.5" />
+    <text
+      x="12"
+      y="15.5"
+      textAnchor="middle"
+      fill="currentColor"
+      stroke="none"
+      style={{ fontSize: 8, fontWeight: 700, fontFamily: "inherit" }}
+    >
+      10
+    </text>
+  </svg>
+);
+export const IconFwd10 = ({ size, style }: P) => (
+  <svg viewBox="0 0 24 24" style={{ ...base(size), ...style }}>
+    <path d="M19 12a7 7 0 1 1-7-7h4" />
+    <path d="M13.5 2.5L16 5l-2.5 2.5" />
+    <text
+      x="12"
+      y="15.5"
+      textAnchor="middle"
+      fill="currentColor"
+      stroke="none"
+      style={{ fontSize: 8, fontWeight: 700, fontFamily: "inherit" }}
+    >
+      10
+    </text>
+  </svg>
+);
 export const IconVolume = ({ size, style }: P) => (
   <svg viewBox="0 0 24 24" style={{ ...base(size), ...style }}>
     <path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none" />

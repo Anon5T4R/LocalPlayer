@@ -80,7 +80,8 @@ const MPV_BIN_WIN: &str = "mpv.exe";
 
 /// Resolve o executável do mpv. Override do usuário tem prioridade (Linux/config).
 /// Windows: binário embarcado (binaries/mpv/mpv.exe). Linux: `mpv` do PATH.
-fn resolve_mpv(app: &tauri::AppHandle, override_path: &str) -> Result<PathBuf, String> {
+/// `pub(crate)`: o thumbs.rs usa o MESMO binário em modo headless pras miniaturas.
+pub(crate) fn resolve_mpv(app: &tauri::AppHandle, override_path: &str) -> Result<PathBuf, String> {
     let over = override_path.trim();
     if !over.is_empty() {
         let p = PathBuf::from(over);
@@ -183,7 +184,7 @@ fn clamp_speed(s: f64) -> f64 {
     }
 }
 
-fn no_window(cmd: &mut Command) {
+pub(crate) fn no_window(cmd: &mut Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

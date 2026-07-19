@@ -1,5 +1,7 @@
 mod embed;
 mod mpv;
+mod resume;
+mod thumbs;
 
 use std::path::Path;
 
@@ -58,6 +60,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(mpv::MpvState::default())
+        .manage(thumbs::ThumbsState::default())
+        .setup(|app| {
+            // Libera a pasta de miniaturas no protocolo asset: (SÓ ela).
+            // Falhar aqui não derruba o app: fica sem prévia, o tooltip degrada
+            // pra só-tempo.
+            let _ = thumbs::allow_thumbs_dir(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_startup_file,
             list_dir,
@@ -66,7 +76,11 @@ pub fn run() {
             mpv::mpv_start,
             mpv::mpv_command,
             mpv::mpv_stop,
-            mpv::stage_rect
+            mpv::stage_rect,
+            resume::resume_load,
+            resume::resume_save,
+            thumbs::thumbs_start,
+            thumbs::thumbs_cancel
         ])
         .build(tauri::generate_context!())
         .expect("erro ao construir o app Tauri")

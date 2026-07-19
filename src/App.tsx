@@ -40,6 +40,12 @@ export default function App() {
     );
     unsubs.push(listen<string>("open-file", (e) => void openFile(e.payload)));
     unsubs.push(
+      listen<{ path: string; index: number; file: string; count: number }>(
+        "thumbs-ready",
+        (e) => usePlayer.getState().applyThumbReady(e.payload),
+      ),
+    );
+    unsubs.push(
       getCurrentWebview().onDragDropEvent((event) => {
         if (event.payload.type === "drop" && event.payload.paths.length) {
           void openFiles(event.payload.paths);
@@ -52,7 +58,13 @@ export default function App() {
       if (f) void openFile(f);
     });
 
+    // Fechamento do app: melhor-esforço de salvar a posição já (o invoke é
+    // async e pode não completar — a gravação periódica de 5s é a garantia).
+    const onUnload = () => usePlayer.getState().savePositionNow();
+    window.addEventListener("beforeunload", onUnload);
+
     return () => {
+      window.removeEventListener("beforeunload", onUnload);
       for (const u of unsubs) void u.then((fn) => fn());
     };
   }, [boot, applyRawEvent, handleMpvExit, openFile, openFiles]);

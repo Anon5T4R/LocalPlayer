@@ -38,7 +38,7 @@ export function PlayerView() {
       const r = el.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const ui = useUi.getState();
-      const visible = !ui.settingsOpen && !ui.popoverOpen;
+      const visible = !ui.settingsOpen && !ui.popoverOpen && !ui.seekPreview;
       stageRect(
         Math.round(r.left * dpr),
         Math.round(r.top * dpr),

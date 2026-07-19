@@ -484,6 +484,28 @@ button {
   pointer-events: none;
   white-space: nowrap;
 }
+/* Com miniatura o tooltip cresce PRA CIMA da barra (sobre o palco — no embed o
+   vídeo nativo se esconde enquanto isso, ver seekPreview no ui.ts). */
+.seek-tip.has-thumb {
+  top: auto;
+  bottom: calc(100% + 4px);
+  padding: 3px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.seek-tip-img {
+  display: block;
+  width: 160px;
+  border-radius: 6px;
+  background: #111;
+}
+.seek-tip.has-thumb .seek-tip-time {
+  padding: 0 4px 1px;
+}
 .seek-track {
   position: relative;
   height: 6px;

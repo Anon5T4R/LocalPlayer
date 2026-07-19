@@ -18,6 +18,10 @@ interface UiState {
   controlsVisible: boolean;
   /** Algum popover/menu aberto — o embed do vídeo é escondido pra ele aparecer. */
   popoverOpen: boolean;
+  /** Tooltip de prévia (thumb) da seekbar visível — mesmo trato do popover:
+   *  o embed nativo fica ACIMA do HTML, então esconder é o único jeito de o
+   *  tooltip aparecer sobre o palco. */
+  seekPreview: boolean;
 
   toast(kind: Toast["kind"], text: string): void;
   dismissToast(id: number): void;
@@ -28,6 +32,7 @@ interface UiState {
   setFullscreen(on: boolean): void;
   setControlsVisible(on: boolean): void;
   setPopoverOpen(on: boolean): void;
+  setSeekPreview(on: boolean): void;
 }
 
 let nextToast = 1;
@@ -40,6 +45,7 @@ export const useUi = create<UiState>((set) => ({
   fullscreen: false,
   controlsVisible: true,
   popoverOpen: false,
+  seekPreview: false,
 
   toast(kind, text) {
     const id = nextToast++;
@@ -71,5 +77,10 @@ export const useUi = create<UiState>((set) => ({
   },
   setPopoverOpen(on) {
     set({ popoverOpen: on });
+  },
+  setSeekPreview(on) {
+    // Dispara em mousemove: só seta se mudou (cada set notifica o report() do
+    // PlayerView, que faz IPC stage_rect — sem isto seria um invoke por pixel).
+    set((s) => (s.seekPreview === on ? s : { seekPreview: on }));
   },
 }));

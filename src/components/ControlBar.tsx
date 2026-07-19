@@ -11,11 +11,13 @@ import { useUi } from "../state/ui";
 import { Seekbar } from "./Seekbar";
 import {
   IconAudio,
+  IconBack10,
   IconCamera,
   IconCaptions,
   IconChapters,
   IconExitFullscreen,
   IconFullscreen,
+  IconFwd10,
   IconList,
   IconLoop,
   IconMute,
@@ -74,6 +76,7 @@ export function ControlBar() {
         position={p.position}
         buffered={p.buffered}
         chapters={p.chapters}
+        thumbs={p.thumbs?.files ?? null}
         onSeek={(s) => p.seekAbs(s)}
       />
 
@@ -82,9 +85,15 @@ export function ControlBar() {
           <IconBtn title={tr("ctrl.prev")} onClick={() => p.prev()}>
             <IconPrev />
           </IconBtn>
+          <IconBtn title={tr("ctrl.back10")} onClick={() => p.seekRel(-10)}>
+            <IconBack10 />
+          </IconBtn>
           <button className="play-btn" title={tr("ctrl.playpause")} onClick={() => p.togglePause()}>
             {p.paused ? <IconPlay size={26} /> : <IconPause size={26} />}
           </button>
+          <IconBtn title={tr("ctrl.fwd10")} onClick={() => p.seekRel(10)}>
+            <IconFwd10 />
+          </IconBtn>
           <IconBtn title={tr("ctrl.next")} onClick={() => p.next()}>
             <IconNext />
           </IconBtn>
