@@ -159,6 +159,8 @@ const sess = loadSession();
 let resumeMap: ResumeMap = {};
 let resumeLoaded = false;
 let lastResumeSaveTs = 0;
+/** posMs da retomada em voo (setado no playIndex, anunciado no file-loaded). */
+let pendingResumeMs: number | null = null;
 /** Arquivo pra quem já disparamos a geração de thumbs (dedup do gatilho). */
 let thumbsStartedFor = "";
 
@@ -322,7 +324,14 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
       chapterIndex: -1,
       ab: { a: null, b: null },
     });
-    await B.mpvLoad(path).catch((e) => {
+    // Resume decidido AQUI e entregue como `start=` do loadfile — o seek no
+    // file-loaded chegava cedo demais às vezes e o mpv o descartava (bug
+    // relatado no teste real da v0.4.0). O toast fica pro file-loaded, quando
+    // a retomada de fato aconteceu.
+    const entry = get().settings.rememberPosition ? resumeMap[path] : undefined;
+    const startSecs = entry && shouldResume(entry) ? resumeTargetMs(entry.posMs) / 1000 : undefined;
+    pendingResumeMs = startSecs !== undefined && entry ? entry.posMs : null;
+    await B.mpvLoad(path, startSecs).catch((e) => {
       useUi.getState().toast("error", tr("err.openFail", { e: String(e) }));
     });
   },
@@ -473,13 +482,11 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
         return;
       case "fileLoaded": {
         set({ paused: false });
-        // Resume próprio: retoma de posMs-2s se valer a pena (lib/resume.ts).
-        // Usa a duração SALVA — a atual pode ainda não ter chegado do mpv.
-        const { path, settings } = get();
-        const e = resumeMap[path];
-        if (settings.rememberPosition && e && shouldResume(e)) {
-          get().seekAbs(resumeTargetMs(e.posMs) / 1000);
-          useUi.getState().toast("info", tr("toast.resume", { time: fmtTime(e.posMs / 1000) }));
+        // A retomada já veio no `start=` do loadfile (ver playIndex) — aqui
+        // só se anuncia. Nada de seek: era ele que corria contra o mpv.
+        if (pendingResumeMs !== null) {
+          useUi.getState().toast("info", tr("toast.resume", { time: fmtTime(pendingResumeMs / 1000) }));
+          pendingResumeMs = null;
         }
         return;
       }

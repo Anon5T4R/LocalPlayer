@@ -69,7 +69,17 @@ export const thumbsCancel = () => cmd<void>("thumbs_cancel");
 export const mpvCommand = (args: unknown[]) => cmd<void>("mpv_command", { args });
 
 // ---- mpv: helpers de alto nível ----
-export const mpvLoad = (path: string) => mpvCommand(["loadfile", path, "replace"]);
+/** Carrega o arquivo, opcionalmente já ABRINDO na posição dada (resume).
+ *  O `start=` no próprio loadfile é a forma à prova de corrida: seek disparado
+ *  no `file-loaded` chegava cedo demais às vezes e o mpv o descartava — o
+ *  "continuar de onde parou" falhava de vez em quando. Como opção de abertura,
+ *  o próprio mpv aplica no momento certo. (mpv ≥0.38: loadfile <url> <flags>
+ *  <index> <options> — o índice -1 é obrigatório pra opções na 4ª posição;
+ *  a build embarcada é 0.41.) */
+export const mpvLoad = (path: string, startSecs?: number) =>
+  startSecs && startSecs > 0
+    ? mpvCommand(["loadfile", path, "replace", "-1", `start=${startSecs.toFixed(3)}`])
+    : mpvCommand(["loadfile", path, "replace"]);
 export const mpvSet = (prop: string, value: unknown) =>
   mpvCommand(["set_property", prop, value]);
 export const mpvObserve = (id: number, name: string) =>
