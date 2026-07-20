@@ -102,3 +102,31 @@ export const mpvSetSpeed = (s: number) => mpvSet("speed", Math.max(0.25, Math.mi
 export const mpvSetTrack = (kind: "aid" | "sid" | "vid", id: number | "no") =>
   mpvSet(kind, id);
 export const mpvSetSubDelay = (secs: number) => mpvSet("sub-delay", secs);
+
+// ---- Dados e armazenamento (B11) ----
+export interface StorageInfo {
+  dir: string;
+  thumbsBytes: number;
+  thumbsFiles: number;
+  cachedVideos: number;
+  liveCount: number;
+  staleBytes: number;
+  staleCount: number;
+  missingBytes: number;
+  missingCount: number;
+  unlabeledBytes: number;
+  unlabeledCount: number;
+  tmpBytes: number;
+  tmpCount: number;
+  resumeBytes: number;
+  resumeEntries: number;
+}
+export interface Freed {
+  files: number;
+  bytes: number;
+}
+export const storageInfo = () => cmd<StorageInfo>("storage_info");
+export const storageClearStale = () => cmd<Freed>("storage_clear_stale");
+export const storageClearMissing = () => cmd<Freed>("storage_clear_missing");
+export const storageClearTmp = () => cmd<Freed>("storage_clear_tmp");
+export const storageClearAllThumbs = () => cmd<Freed>("storage_clear_all_thumbs");

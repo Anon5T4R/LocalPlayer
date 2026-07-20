@@ -129,6 +129,24 @@ pub fn thumbs_start(
         .unwrap_or(0);
     let dir = thumbs_root(&app)?.join(cache_key(&path, mtime, meta.len()));
     std::fs::create_dir_all(&dir).map_err(|e| format!("criar cache: {}", e))?;
+    // Etiqueta a pasta com o vídeo que a gerou. Do nome dela (hex do hash) não
+    // dá pra voltar ao caminho, então sem isto o painel de armazenamento não
+    // teria como distinguir cache útil de lixo — e chutar ali é apagar cache
+    // bom. Best-effort de propósito: falhar aqui não pode impedir o vídeo de
+    // tocar; a pasta só nasce "sem etiqueta", que é o balde conservador.
+    crate::storage::write_label(
+        &dir,
+        &crate::storage::Label {
+            path: path.clone(),
+            name: Path::new(&path)
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned(),
+            mtime,
+            size: meta.len(),
+        },
+    );
 
     let my_gen = state.gen.fetch_add(1, Ordering::SeqCst) + 1;
     let dir_s = dir.to_string_lossy().to_string();

@@ -1,6 +1,7 @@
 mod embed;
 mod mpv;
 mod resume;
+mod storage;
 mod thumbs;
 
 use std::path::Path;
@@ -80,7 +81,12 @@ pub fn run() {
             resume::resume_load,
             resume::resume_save,
             thumbs::thumbs_start,
-            thumbs::thumbs_cancel
+            thumbs::thumbs_cancel,
+            storage::storage_info,
+            storage::storage_clear_stale,
+            storage::storage_clear_missing,
+            storage::storage_clear_tmp,
+            storage::storage_clear_all_thumbs
         ])
         .build(tauri::generate_context!())
         .expect("erro ao construir o app Tauri")

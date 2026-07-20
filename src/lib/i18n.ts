@@ -133,6 +133,52 @@ const pt = {
   "track.n": "Faixa {n}",
   "track.external": "(externa)",
   "chapter.n": "Capítulo {n}",
+
+  // --- Dados e armazenamento (B11) ---
+  "storage.section": "Dados e armazenamento",
+  "storage.path": "Pasta de dados",
+  "storage.open": "Abrir",
+  "storage.thumbs": "Cache de miniaturas",
+  "storage.thumbsCounts": "{videos} vídeos em cache · {files} miniaturas · {live} ainda em uso",
+  "storage.thumbsHint":
+    "as prévias que aparecem ao passar o mouse na barra. É cache puro: o que for apagado aqui volta sozinho na próxima vez que o vídeo abrir.",
+  "storage.resume": "Onde você parou",
+  "storage.resumeCounts": "{n} vídeos com posição salva",
+  "storage.resumeHint":
+    "a posição de retomada de cada vídeo — isso não se recupera de lugar nenhum, e nenhum botão desta tela apaga.",
+  "storage.stale": "Miniaturas de versões antigas",
+  "storage.staleCounts": "{n} vídeos ({size})",
+  "storage.staleHint":
+    "o vídeo continua no lugar, mas foi reeditado ou regravado desde então — estas miniaturas são de uma versão que não existe mais. Risco zero: nada do que está em uso é tocado.",
+  "storage.missing": "Miniaturas de vídeos não encontrados",
+  "storage.missingCounts": "{n} vídeos ({size})",
+  "storage.missingHint":
+    "o arquivo não responde mais no caminho de origem. Atenção: se você MOVEU a sua biblioteca (outra pasta, outra letra de unidade), ela conta aqui — o app não tem como distinguir apagado de mudado de lugar. Nesse caso as miniaturas voltam a ser geradas na primeira vez que o vídeo abrir.",
+  "storage.unlabeled": "Cache de versões anteriores",
+  "storage.unlabeledCounts": "{n} vídeos ({size})",
+  "storage.unlabeledHint":
+    "pastas criadas antes desta versão, sem a etiqueta que diz a que vídeo pertencem. Como não dá pra saber, elas nunca entram nas limpezas acima — só saem no “limpar tudo”.",
+  "storage.tmp": "Sobras de geração interrompida",
+  "storage.tmpCounts": "{n} pastas ({size})",
+  "storage.tmpHint":
+    "pedaços deixados pra trás quando o app foi fechado no meio da geração. Nenhuma miniatura pronta sai junto.",
+  "storage.all": "Limpar todo o cache de miniaturas",
+  "storage.allHint":
+    "apaga as miniaturas de todos os vídeos, inclusive as em uso. Nada além delas sai: a posição de retomada e as suas configurações ficam. Tudo é regerado ao abrir cada vídeo de novo.",
+  "storage.clear": "Limpar",
+  "storage.confirmTitle": "Confirmar limpeza",
+  "storage.confirmStale":
+    "Apagar as miniaturas de versões antigas? As miniaturas dos vídeos como estão hoje ficam.",
+  "storage.confirmMissing":
+    "Apagar as miniaturas dos vídeos que não estão mais no caminho de origem? Se você moveu a biblioteca, elas serão geradas de novo ao abrir cada vídeo. Nenhum vídeo seu é tocado.",
+  "storage.confirmTmp": "Apagar as sobras de geração interrompida? Nenhuma miniatura pronta sai.",
+  "storage.confirmAll":
+    "Apagar TODO o cache de miniaturas? A posição de retomada de cada vídeo e as suas configurações continuam intactas, e as miniaturas voltam sozinhas conforme você for abrindo os vídeos.",
+  "storage.confirmYes": "Sim, apagar",
+  "storage.cancel": "Cancelar",
+  "storage.freed": "Liberado {size} ({n} arquivos).",
+  "storage.nothing": "Nada pra limpar aqui.",
+  "storage.failed": "Falha na limpeza: {e}",
 } as const;
 
 export type MessageKey = keyof typeof pt;
@@ -227,6 +273,52 @@ const en: Record<MessageKey, string> = {
   "track.n": "Track {n}",
   "track.external": "(external)",
   "chapter.n": "Chapter {n}",
+
+  "storage.section": "Data and storage",
+  "storage.path": "Data folder",
+  "storage.open": "Open",
+  "storage.thumbs": "Thumbnail cache",
+  "storage.thumbsCounts": "{videos} cached videos · {files} thumbnails · {live} still in use",
+  "storage.thumbsHint":
+    "the previews you see when hovering the seek bar. Pure cache: anything deleted here comes back on its own the next time the video is opened.",
+  "storage.resume": "Where you left off",
+  "storage.resumeCounts": "{n} videos with a saved position",
+  "storage.resumeHint":
+    "the resume position of each video — it cannot be recovered from anywhere, and no button on this screen deletes it.",
+  "storage.stale": "Thumbnails of older versions",
+  "storage.staleCounts": "{n} videos ({size})",
+  "storage.staleHint":
+    "the video is still there, but it was re-edited or re-encoded since — these thumbnails belong to a version that no longer exists. Zero risk: nothing in use is touched.",
+  "storage.missing": "Thumbnails of videos not found",
+  "storage.missingCounts": "{n} videos ({size})",
+  "storage.missingHint":
+    "the file no longer answers at its original path. Careful: if you MOVED your library (another folder, another drive letter), it counts here — the app cannot tell deleted apart from moved. In that case the thumbnails are simply generated again the first time each video is opened.",
+  "storage.unlabeled": "Cache from earlier versions",
+  "storage.unlabeledCounts": "{n} videos ({size})",
+  "storage.unlabeledHint":
+    "folders created before this version, without the label saying which video they belong to. Since there is no way to know, they never enter the cleanups above — they only go with “clear everything”.",
+  "storage.tmp": "Leftovers from interrupted generation",
+  "storage.tmpCounts": "{n} folders ({size})",
+  "storage.tmpHint":
+    "pieces left behind when the app was closed mid-generation. No finished thumbnail goes with them.",
+  "storage.all": "Clear the whole thumbnail cache",
+  "storage.allHint":
+    "deletes every video's thumbnails, including the ones in use. Nothing else goes: your resume positions and settings stay. Everything is regenerated as you open each video again.",
+  "storage.clear": "Clear",
+  "storage.confirmTitle": "Confirm cleanup",
+  "storage.confirmStale":
+    "Delete the thumbnails of older versions? The thumbnails of your videos as they are today stay.",
+  "storage.confirmMissing":
+    "Delete the thumbnails of videos no longer at their original path? If you moved your library they will be generated again as you open each video. None of your videos are touched.",
+  "storage.confirmTmp":
+    "Delete the leftovers from interrupted generation? No finished thumbnail goes with them.",
+  "storage.confirmAll":
+    "Delete the ENTIRE thumbnail cache? Every video's resume position and your settings stay intact, and thumbnails come back on their own as you open the videos.",
+  "storage.confirmYes": "Yes, delete",
+  "storage.cancel": "Cancel",
+  "storage.freed": "Freed {size} ({n} files).",
+  "storage.nothing": "Nothing to clean up here.",
+  "storage.failed": "Cleanup failed: {e}",
 };
 
 const es: Record<MessageKey, string> = {
@@ -319,6 +411,52 @@ const es: Record<MessageKey, string> = {
   "track.n": "Pista {n}",
   "track.external": "(externa)",
   "chapter.n": "Capítulo {n}",
+
+  "storage.section": "Datos y almacenamiento",
+  "storage.path": "Carpeta de datos",
+  "storage.open": "Abrir",
+  "storage.thumbs": "Caché de miniaturas",
+  "storage.thumbsCounts": "{videos} videos en caché · {files} miniaturas · {live} aún en uso",
+  "storage.thumbsHint":
+    "las vistas previas que aparecen al pasar el mouse por la barra. Es caché puro: lo que se borre aquí vuelve solo la próxima vez que se abra el video.",
+  "storage.resume": "Dónde te quedaste",
+  "storage.resumeCounts": "{n} videos con posición guardada",
+  "storage.resumeHint":
+    "la posición de reanudación de cada video — eso no se recupera de ninguna parte, y ningún botón de esta pantalla lo borra.",
+  "storage.stale": "Miniaturas de versiones antiguas",
+  "storage.staleCounts": "{n} videos ({size})",
+  "storage.staleHint":
+    "el video sigue en su lugar, pero fue reeditado o vuelto a codificar desde entonces — estas miniaturas son de una versión que ya no existe. Riesgo cero: nada de lo que está en uso se toca.",
+  "storage.missing": "Miniaturas de videos no encontrados",
+  "storage.missingCounts": "{n} videos ({size})",
+  "storage.missingHint":
+    "el archivo ya no responde en su ruta de origen. Atención: si MOVISTE tu biblioteca (otra carpeta, otra letra de unidad), cuenta aquí — la app no puede distinguir borrado de movido. En ese caso las miniaturas simplemente se generan de nuevo la primera vez que abras cada video.",
+  "storage.unlabeled": "Caché de versiones anteriores",
+  "storage.unlabeledCounts": "{n} videos ({size})",
+  "storage.unlabeledHint":
+    "carpetas creadas antes de esta versión, sin la etiqueta que dice a qué video pertenecen. Como no hay forma de saberlo, nunca entran en las limpiezas de arriba — solo salen con «limpiar todo».",
+  "storage.tmp": "Restos de generación interrumpida",
+  "storage.tmpCounts": "{n} carpetas ({size})",
+  "storage.tmpHint":
+    "trozos que quedaron cuando la app se cerró a mitad de la generación. Ninguna miniatura terminada se va con ellos.",
+  "storage.all": "Limpiar toda la caché de miniaturas",
+  "storage.allHint":
+    "borra las miniaturas de todos los videos, incluidas las en uso. Nada más se va: tus posiciones de reanudación y tus ajustes se quedan. Todo se regenera al abrir cada video de nuevo.",
+  "storage.clear": "Limpiar",
+  "storage.confirmTitle": "Confirmar limpieza",
+  "storage.confirmStale":
+    "¿Borrar las miniaturas de versiones antiguas? Las miniaturas de tus videos tal como están hoy se quedan.",
+  "storage.confirmMissing":
+    "¿Borrar las miniaturas de los videos que ya no están en su ruta de origen? Si moviste tu biblioteca se generarán de nuevo al abrir cada video. Ninguno de tus videos se toca.",
+  "storage.confirmTmp":
+    "¿Borrar los restos de generación interrumpida? Ninguna miniatura terminada se va con ellos.",
+  "storage.confirmAll":
+    "¿Borrar TODA la caché de miniaturas? La posición de reanudación de cada video y tus ajustes quedan intactos, y las miniaturas vuelven solas a medida que abras los videos.",
+  "storage.confirmYes": "Sí, borrar",
+  "storage.cancel": "Cancelar",
+  "storage.freed": "Liberado {size} ({n} archivos).",
+  "storage.nothing": "Nada que limpiar aquí.",
+  "storage.failed": "Error en la limpieza: {e}",
 };
 
 const DICTS: Record<Locale, Record<MessageKey, string>> = { pt, en, es };
