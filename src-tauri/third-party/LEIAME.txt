@@ -1,0 +1,82 @@
+Binários de terceiros distribuídos com o LocalPlayer
+====================================================
+
+O LocalPlayer é software livre sob a licença MIT (veja o LICENSE na raiz do
+repositório). O instalador do Windows acompanha o mpv, um programa de terceiro
+em build NÃO MODIFICADA, com licença própria — o que segue cumpre as obrigações
+de quem redistribui esse binário.
+
+O mpv roda como PROCESSO SEPARADO, controlado por IPC. O código do LocalPlayer
+não faz linkagem com ele: as duas obras são apenas agregadas no mesmo
+instalador e cada uma mantém a sua licença.
+
+  ⚠️ SÓ NO WINDOWS. No Linux o LocalPlayer usa o mpv DO SISTEMA (`apt install
+  mpv`) e não redistribui binário nenhum — o AppImage não contém mpv. Este
+  aviso acompanha o instalador nas duas plataformas mesmo assim, porque o texto
+  é versionado no repositório e não extraído do pacote baixado (ver a nota no
+  fim).
+
+
+1) mpv — GPL-2.0-or-later
+-------------------------
+Reprodutor de mídia.
+
+  versão ............ 20260717-git-94335ab87a (commit 94335ab87a)
+  fonte ............. https://github.com/mpv-player/mpv (commit 94335ab87a)
+  build original .... https://github.com/zhongfly/mpv-winbuild
+                      (tag 2026-07-17-94335ab87a,
+                       asset mpv-x86_64-20260717-git-94335ab87a.7z)
+  espelho ........... https://github.com/Anon5T4R/Local-runtimes (release v1)
+  sha256 (win) ...... 7cc6b4926627ef46e82ba7ee8b037bf7c9e3cdf9f1dd6d8b7798044b13be7eab
+
+  Texto da licença .. LICENSE-mpv-GPL-2.0.txt (cópia do LICENSE.GPL do commit
+                      94335ab87a)
+  Avisos de copyright  COPYRIGHT-mpv.txt (cópia do arquivo Copyright do mesmo
+                      commit; detalha, arquivo a arquivo, o que é GPLv2+ e o
+                      que é LGPLv2.1+)
+
+  O mpv como um todo é GPL-2.0-or-later por padrão. Esta build é a padrão (com
+  os arquivos GPL), então o binário redistribuído é GPLv2+.
+
+  OFERTA DE CÓDIGO-FONTE (GPL-2.0, seção 3)
+  O código-fonte correspondente está publicamente disponível em
+  https://github.com/mpv-player/mpv no commit 94335ab87a, e a receita de
+  compilação em https://github.com/zhongfly/mpv-winbuild. Se preferir recebê-lo
+  por outro meio, abra uma issue em
+  https://github.com/Anon5T4R/LocalPlayer e ele será fornecido.
+
+
+2) FFmpeg — GPL-3.0-or-later (embutido estaticamente no mpv.exe)
+----------------------------------------------------------------
+A build do zhongfly linka o FFmpeg ESTATICAMENTE dentro do mpv.exe, na variante
+"-gpl" (--enable-gpl --enable-version3). Não há arquivo separado no instalador:
+o código do FFmpeg está dentro do próprio mpv.exe, e por isso a licença dele
+também acompanha esta distribuição.
+
+  Texto da licença .. LICENSE-ffmpeg-GPL-3.0.txt (GNU GPL versão 3)
+  fonte ............. https://github.com/FFmpeg/FFmpeg
+  receita de build .. https://github.com/zhongfly/mpv-winbuild
+
+  Como o FFmpeg entra sob --enable-version3, a combinação resultante é
+  distribuída sob a GPL versão 3 ou posterior.
+
+  OFERTA DE CÓDIGO-FONTE (GPL-3.0, seção 6)
+  O código-fonte correspondente está publicamente disponível nos endereços
+  acima. A versão exata do FFmpeg usada nesta build consta na receita do
+  zhongfly/mpv-winbuild referente à tag 2026-07-17-94335ab87a. Se preferir
+  recebê-lo por outro meio, abra uma issue em
+  https://github.com/Anon5T4R/LocalPlayer e ele será fornecido.
+
+
+Por que estes textos são VERSIONADOS aqui
+------------------------------------------
+O pacote .7z do zhongfly NÃO traz arquivo de licença nenhum — só mpv.exe,
+mpv.com, a documentação e scripts auxiliares (conferido no pacote do espelho em
+2026-07-20). Diferente do ffmpeg do BtbN e do zip do pandoc no Windows, aqui não
+há LICENSE pra extrair do download.
+
+Por isso as cópias vivem no repositório, versionadas. É a mesma decisão que o
+LocalOffice tomou pro pandoc, e pelo mesmo motivo: extrair do arquivo baixado
+faria o instalador sair conforme quando o upstream lembra de incluir o texto e
+não conforme quando ele esquece. Se um dia o pacote passar a trazer o LICENSE,
+vale conferir se estes textos ainda batem com o que veio.

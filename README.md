@@ -57,3 +57,11 @@ baixado no workflow (Windows) — nada de binário versionado no repo.
 
 Código sob **MIT**. O binário do mpv (build GPL) é embutido no instalador do
 Windows como processo separado. No Linux usa o mpv do sistema.
+
+Como o instalador do Windows **redistribui** o mpv, ele leva junto o texto da
+licença dele e a oferta de código-fonte, em `src-tauri/third-party/`
+(`LEIAME.txt`, `LICENSE-mpv-GPL-2.0.txt`, `COPYRIGHT-mpv.txt` e
+`LICENSE-ffmpeg-GPL-3.0.txt` — o FFmpeg entra estático dentro do `mpv.exe`).
+Os textos são **versionados** aqui porque o pacote `.7z` do upstream não traz
+arquivo de licença nenhum; extrair do download deixaria o instalador conforme
+só quando o upstream lembrasse de incluí-lo.
