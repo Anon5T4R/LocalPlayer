@@ -25,6 +25,7 @@ export const OBSERVE: Array<[number, string]> = [
   [17, "vid"],
   [18, "aid"],
   [19, "sid"],
+  [20, "eof-reached"],
 ];
 
 export type MpvSignal =

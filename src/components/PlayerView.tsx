@@ -60,7 +60,9 @@ export function PlayerView() {
     };
   }, [embedded]);
 
-  // Auto-ocultar controles no modo imersivo (mouse parado por 2,5 s).
+  // Auto-ocultar controles no modo imersivo (mouse parado por 3 s). O cursor
+  // some junto via CSS (data-chrome="hidden") e reaparece ao mover; sobre a
+  // área do vídeo embutido quem esconde é o próprio mpv (--cursor-autohide).
   useEffect(() => {
     if (!immersive) {
       setControlsVisible(true);
@@ -70,7 +72,7 @@ export function PlayerView() {
     const show = () => {
       setControlsVisible(true);
       clearTimeout(timer);
-      timer = setTimeout(() => setControlsVisible(false), 2500);
+      timer = setTimeout(() => setControlsVisible(false), 3000);
     };
     show();
     window.addEventListener("mousemove", show);

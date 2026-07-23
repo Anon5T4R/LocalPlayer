@@ -139,6 +139,9 @@ pub fn build_args(cfg: &MpvArgs) -> Vec<String> {
         // Voz inteligível em velocidade alterada.
         "--af=scaletempo2".into(),
         "--hwdec=auto-safe".into(),
+        // Cursor some após 3 s parado sobre o vídeo e volta ao mover. A área do
+        // vídeo é janela nativa do mpv — o cursor:none do CSS não alcança lá.
+        "--cursor-autohide=3000".into(),
         // Silencioso: não lemos o stdout do mpv (só a IPC).
         "--msg-level=all=no".into(),
         format!("--input-ipc-server={}", cfg.ipc),
@@ -691,6 +694,7 @@ mod tests {
         assert!(a.iter().any(|s| s == "--watch-later-directory=C:/w"));
         assert!(a.iter().any(|s| s == "--save-position-on-quit=yes"));
         assert!(a.iter().any(|s| s.starts_with("--volume=80")));
+        assert!(a.iter().any(|s| s == "--cursor-autohide=3000"));
         // No embed a UI é nossa: OSC e teclado do mpv desligados.
         assert!(a.iter().any(|s| s == "--no-osc"));
         assert!(a.iter().any(|s| s == "--input-default-bindings=no"));

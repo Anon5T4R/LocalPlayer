@@ -482,6 +482,9 @@ export const usePlayer = create<PlayerStore>((set, get) => ({
         return;
       case "fileLoaded": {
         set({ paused: false });
+        // O `pause` do mpv PERSISTE entre loadfiles (fim de arquivo com
+        // keep-open pausa, e o próximo abriria pausado): destrava sempre.
+        void B.mpvSetPause(false);
         // A retomada já veio no `start=` do loadfile (ver playIndex) — aqui
         // só se anuncia. Nada de seek: era ele que corria contra o mpv.
         if (pendingResumeMs !== null) {
@@ -634,6 +637,12 @@ function applyProp(name: string, data: unknown, set: SetFn, get: GetFn) {
       return;
     case "sid":
       set({ sid: typeof data === "number" ? data : "no" });
+      return;
+    case "eof-reached":
+      // Com --keep-open=yes (e playlist interna de 1 item) o mpv NÃO emite
+      // end-file/eof no fim: ele pausa no último frame e liga esta propriedade.
+      // É ela que dispara o avanço pro seguinte da pasta.
+      if (data === true) get().onEndFile("eof");
       return;
     default:
       return;

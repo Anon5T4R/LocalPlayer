@@ -295,6 +295,12 @@ button {
   min-height: 0;
   background: var(--bg);
 }
+/* Imersivo com controles ocultos: o mouse some junto (o mousemove que reexibe
+   os controles volta o data-chrome pra "shown" e o cursor reaparece). */
+.player[data-chrome="hidden"],
+.player[data-chrome="hidden"] * {
+  cursor: none;
+}
 .topbar {
   display: flex;
   align-items: center;
