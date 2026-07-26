@@ -24,25 +24,30 @@
 //! real (libs de host empacotadas no AppDir) foi corrigida no empacotamento.
 //! Sem aquele conserto, este módulo não teria como funcionar.
 
-//! ─── ESTADO: DESLIGADO (26/07/2026) ──────────────────────────────────────────
+//! ─── Por que o vídeo fica POR CIMA, e não por baixo ─────────────────────────
 //!
-//! A base funciona e está verificada: a libmpv inicia, o `GtkGLArea` cria
-//! contexto, o contexto de render nasce e a IPC sobe na instância de dentro do
-//! app — tudo confirmado rodando.
+//! O desenho óbvio (GLArea atrás, WebView transparente na frente) NÃO funciona
+//! com webkit2gtk, e isso foi provado empiricamente, não suposto: com o mpv
+//! rendendo Ok a 120 fps, geometria correta, furo de CSS atravessando a pilha
+//! inteira e visual RGBA na janela, pintamos o clear do mpv de MAGENTA — e a
+//! área continuou cinza. O webkit oclui o que está atrás dele de forma opaca,
+//! não importa o alpha.
 //!
-//! O que NÃO funciona é a composição. No GTK3 o `GtkGLArea` pinta por cima dos
-//! filhos de overlay, e a janela inteira fica preta. Medi as duas camadas com
-//! o app rodando: `GLArea 1180x673 | WebView 1180x673 (visível=true)` — ou
-//! seja, não é dimensionamento nem visibilidade, é ordem de desenho.
+//! Então as camadas são invertidas: o WebView é o fundo (a interface inteira)
+//! e o GLArea fica POR CIMA, posicionado e recortado no retângulo do `.stage`
+//! que o próprio front reporta (`stage_rect` — a MESMA infraestrutura do embed
+//! do Windows, com ResizeObserver e tudo). Cliques atravessam o GLArea
+//! (`set_overlay_pass_through`), então a interface continua inteira clicável;
+//! o que fica sob o vídeo é exatamente o `.stage`, que já era só o palco.
 //!
-//! Por isso o módulo está atrás da feature `video-na-janela`, desligada. O
-//! caminho de produção segue sendo o mpv em janela própria.
-//!
-//! Para retomar, o problema a resolver é ESTE: como fazer o WebView ser
-//! composto SOBRE uma superfície GL no GTK3. Caminhos plausíveis, nenhum
-//! testado ainda: `gtk_gl_area_set_use_es` + `gdk_window_ensure_native` no
-//! WebView, ou desenhar o vídeo no `draw` do próprio container em vez de num
-//! GLArea, ou subir pra GTK4 (onde a composição de widgets GL é outra).
+//! Lições pagas que continuam valendo aqui:
+//! - o reparent do WebView TEM que acontecer antes do primeiro map (janela
+//!   nasce com `visible: false`); depois de mapeado o webkit2gtk não pinta
+//!   nunca mais.
+//! - o wry sobe DOIS níveis do webview e exige a GtkWindow ali a cada clique
+//!   (undecorated_resizing.rs) — o webview precisa ser filho direto do
+//!   overlay, e o overlay filho direto da janela. Qualquer outra forma aborta
+//!   o app no primeiro clique.
 
 #![cfg(target_os = "linux")]
 
@@ -114,6 +119,33 @@ impl GlVideo {
     pub fn area(&self) -> &gtk::GLArea {
         &self.area
     }
+
+    /// Posiciona o vídeo no retângulo do `.stage`. Recebe pixels FÍSICOS (o
+    /// front multiplica por devicePixelRatio, herança do embed do Windows,
+    /// onde a child window é endereçada assim); margens e size_request do GTK
+    /// são LÓGICOS, daí a divisão pelo scale factor.
+    pub fn set_rect(&self, x: i32, y: i32, w: i32, h: i32, visible: bool) {
+        let esc = self.area.scale_factor().max(1);
+        let (x, y, w, h) = (x / esc, y / esc, w / esc, h / esc);
+        if !visible || w <= 0 || h <= 0 {
+            self.area.hide();
+            return;
+        }
+        self.area.set_margin_start(x);
+        self.area.set_margin_top(y);
+        self.area.set_size_request(w, h);
+        self.area.show();
+        self.area.queue_render();
+    }
+}
+
+/// Ponte do comando `stage_rect` (thread de worker) até o GLArea (thread do
+/// GTK). Best-effort: se o vídeo na janela não subiu, não há o que posicionar.
+pub fn aplicar_rect(app: &tauri::AppHandle, x: i32, y: i32, w: i32, h: i32, visible: bool) {
+    let app = app.clone();
+    let _ = app.clone().run_on_main_thread(move || {
+        let _ = com_video(|v| v.set_rect(x, y, w, h, visible));
+    });
 }
 
 /// Põe um `GtkGLArea` ATRÁS do conteúdo da janela e liga o mpv nele.
@@ -126,9 +158,54 @@ impl GlVideo {
 /// A ordem importa e não é estética: `GtkOverlay` desenha o filho principal
 /// primeiro e os overlays depois. Invertida, o vídeo cobriria a interface.
 pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String> {
+    // ── A forma da árvore NÃO é escolha nossa ───────────────────────────────
+    //
+    // A cada clique no webview, o wry sobe EXATAMENTE dois níveis e exige a
+    // janela ali (undecorated_resizing.rs:546):
+    //
+    //     webview.parent().and_then(|w| w.parent())
+    //         .downcast::<gtk::Window>().unwrap()   // ← aborta se não for
+    //
+    // A árvore original é `webview → GtkBox → GtkWindow`. Se o overlay envolver
+    // a caixa (`webview → caixa → Overlay → janela`), o app abre, TOCA VÍDEO —
+    // e morre no primeiro clique. Aconteceu. A única forma que satisfaz o wry é
+    // o overlay substituir a caixa, com o webview DIRETO nele:
+    //
+    //     webview → GtkOverlay → GtkWindow
+    //
+    // Por isso aqui se desmonta a caixa do Tauri e se pega o webview cru.
     let conteudo = gtk_window
         .child()
         .ok_or_else(|| "a janela do Tauri não tem filho — hierarquia inesperada".to_string())?;
+
+    let webview: gtk::Widget = if conteudo.type_().name() == "WebKitWebView" {
+        conteudo.clone()
+    } else if let Ok(caixa) = conteudo.clone().downcast::<gtk::Container>() {
+        let filhos = caixa.children();
+        let wv = filhos
+            .iter()
+            .find(|c| c.type_().name() == "WebKitWebView")
+            .cloned()
+            .ok_or_else(|| {
+                format!(
+                    "não achei o WebKitWebView dentro de {} (filhos: {})",
+                    conteudo.type_().name(),
+                    filhos.iter().map(|c| c.type_().name().to_string()).collect::<Vec<_>>().join(", ")
+                )
+            })?;
+        // Se a caixa tiver mais alguém (menu GTK?), desistir é mais seguro que
+        // descartar um widget que não conhecemos: cai no mpv em janela própria.
+        if filhos.len() != 1 {
+            return Err(format!(
+                "a caixa do Tauri tem {} filhos além do webview — estrutura desconhecida",
+                filhos.len() - 1
+            ));
+        }
+        caixa.remove(&wv);
+        wv
+    } else {
+        return Err(format!("filho da janela é {} — estrutura desconhecida", conteudo.type_().name()));
+    };
 
     let area = gtk::GLArea::new();
     area.set_hexpand(true);
@@ -139,35 +216,21 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
 
     let overlay = gtk::Overlay::new();
     gtk_window.remove(&conteudo);
-    overlay.add(&area);
-    // O filho de OVERLAY nao herda o tamanho do pai: por padrao ele fica no
-    // tamanho natural e e posicionado pelo align. Sem forcar Fill+expand, o
-    // WebView pode ficar com area zero — e ai a janela inteira mostra so o
-    // GLArea, preta. Foi exatamente o que aconteceu na v0.5.10.
-    conteudo.set_halign(gtk::Align::Fill);
-    conteudo.set_valign(gtk::Align::Fill);
-    conteudo.set_hexpand(true);
-    conteudo.set_vexpand(true);
-    overlay.add_overlay(&conteudo);
-    // O WebView é a camada de cima e precisa RECEBER clique; sem isto o evento
-    // atravessaria pro GLArea e a interface ficaria morta.
-    overlay.set_overlay_pass_through(&conteudo, false);
+    // WebView é o FUNDO (filho principal): a interface inteira, sempre visível.
+    overlay.add(&webview);
+    // GLArea é o TOPO, ancorado no canto e dimensionado pelo stage_rect que o
+    // front reporta. Nasce escondido: até o primeiro retângulo chegar, um
+    // overlay com tamanho padrão cobriria a janela inteira.
+    area.set_halign(gtk::Align::Start);
+    area.set_valign(gtk::Align::Start);
+    overlay.add_overlay(&area);
+    // Cliques ATRAVESSAM o vídeo e chegam na interface embaixo — é o que deixa
+    // o clique-no-vídeo do front (pausar, etc.) continuar funcionando.
+    overlay.set_overlay_pass_through(&area, true);
     gtk_window.add(&overlay);
     overlay.show_all();
+    area.hide();
 
-    // Diagnostico: se o WebView receber area zero, a janela mostra so o GLArea
-    // (preta). Medir e o que separa "esta funcionando" de "nao deu erro".
-    {
-        let c = conteudo.clone();
-        let a = area.clone();
-        glib::timeout_add_local_once(std::time::Duration::from_secs(3), move || {
-            eprintln!(
-                "[gl_video] alocacao — GLArea {}x{} | WebView {}x{} (visivel={})",
-                a.allocated_width(), a.allocated_height(),
-                c.allocated_width(), c.allocated_height(), c.is_visible()
-            );
-        });
-    }
 
     // A libmpv EXIGE `LC_NUMERIC=C` e se recusa a iniciar sem isso — ela avisa
     // no stderr ("Non-C locale detected") e devolve erro. O GTK, no arranque,
@@ -193,7 +256,11 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
     // socket que o caminho antigo usa, toda a camada de controle — comandos,
     // observadores, o `interpretEvent` do front e seus testes — segue valendo
     // sem uma linha alterada. O que muda e so ONDE o video e desenhado.
-    let ipc = crate::mpv::ipc_path(std::process::id());
+    // Sufixo `.embed`: o caminho SEM sufixo pertence ao mpv em processo
+    // separado. Se o usuário escolher "janela separada" nas configurações, os
+    // dois modos coexistem — e no mesmo caminho o spawn faria `remove_file` no
+    // socket desta instância, matando o modo embutido até o app reiniciar.
+    let ipc = format!("{}.embed", crate::mpv::ipc_path(std::process::id()));
     let _ = std::fs::remove_file(&ipc);
 
     let mpv = Mpv::with_initializer(move |init| {
@@ -258,7 +325,15 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
             if let Some(ctx) = video.render.borrow().as_ref() {
                 let escala = a.scale_factor();
                 let (w, h) = (a.allocated_width() * escala, a.allocated_height() * escala);
-                let _ = ctx.render::<()>(fbo_atual(), w, h, true);
+                let n = RENDERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                match ctx.render::<()>(fbo_atual(), w, h, true) {
+                    // Uma linha no primeiro frame: e o sinal positivo de que a
+                    // cadeia inteira fechou (ausencia de erro nao prova nada).
+                    Ok(()) if n == 0 => eprintln!("[gl_video] primeiro frame ok ({w}x{h})"),
+                    Ok(()) => {}
+                    Err(e) if n < 3 => eprintln!("[gl_video] render FALHOU: {e}"),
+                    Err(_) => {}
+                }
             }
             glib::Propagation::Stop
         });
@@ -280,8 +355,18 @@ thread_local! {
     static VIDEO: RefCell<Option<Rc<GlVideo>>> = const { RefCell::new(None) };
 }
 
+/// Espelho atômico do "o vídeo na janela subiu?".
+///
+/// Existe porque comando Tauri roda em THREAD DE WORKER, e `VIDEO` é
+/// thread_local da principal: lido da thread do comando ele está sempre vazio.
+/// Foi um bug real — `mpv_start` perguntava `ativo()`, recebia `false`, e
+/// abria o mpv em janela separada mesmo com o embutido de pé.
+static ATIVO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static RENDERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 pub fn guardar(v: Rc<GlVideo>) {
     VIDEO.with(|c| *c.borrow_mut() = Some(v));
+    ATIVO.store(true, std::sync::atomic::Ordering::SeqCst);
 }
 
 fn com_video<R>(f: impl FnOnce(&GlVideo) -> R) -> Option<R> {
@@ -289,20 +374,17 @@ fn com_video<R>(f: impl FnOnce(&GlVideo) -> R) -> Option<R> {
 }
 
 /// O vídeo na janela subiu? Consultado pelo `mpv_start` para decidir se precisa
-/// lançar um processo mpv ou se já há um dentro do app.
+/// lançar um processo mpv ou se já há um dentro do app. Lê o atômico — NUNCA o
+/// thread_local, que da thread de um comando está sempre vazio.
 pub fn ativo() -> bool {
-    VIDEO.with(|c| c.borrow().is_some())
+    ATIVO.load(std::sync::atomic::Ordering::SeqCst)
 }
 
 /// O vídeo na janela está disponível? O front usa isto pra decidir entre este
 /// caminho e o do mpv em janela própria — em vez de adivinhar pelo sistema.
 #[tauri::command]
-pub fn gl_disponivel(app: tauri::AppHandle) -> bool {
-    let (tx, rx) = std::sync::mpsc::channel();
-    let _ = app.run_on_main_thread(move || {
-        let _ = tx.send(com_video(|_| ()).is_some());
-    });
-    rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap_or(false)
+pub fn gl_disponivel() -> bool {
+    ativo()
 }
 
 #[tauri::command]

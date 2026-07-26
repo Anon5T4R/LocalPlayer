@@ -1,4 +1,18 @@
+#[cfg(target_os = "linux")]
 mod gl_video;
+/// Stub fora do Linux: o `generate_handler` referencia os comandos em TODAS as
+/// plataformas, entao eles precisam existir — respondendo "indisponivel".
+#[cfg(not(target_os = "linux"))]
+mod gl_video {
+    #[tauri::command]
+    pub fn gl_disponivel() -> bool {
+        false
+    }
+    #[tauri::command]
+    pub fn gl_load(_path: String) -> Result<(), String> {
+        Err("vídeo na janela é Linux-only".into())
+    }
+}
 mod embed;
 mod mpv;
 mod resume;
@@ -97,22 +111,36 @@ pub fn run() {
             // Falhar aqui NÃO derruba o app — cai no caminho antigo (mpv em
             // janela própria), que é feio mas funciona. Um player que não abre
             // é pior que um player com duas janelas.
-            // DESLIGADO — ver o cabecalho de gl_video.rs. O GtkGLArea dentro de
-            // GtkOverlay pinta por cima do WebView no GTK3, e a janela inteira
-            // fica preta. O modulo fica no repo porque a base (libmpv, contexto
-            // de render, IPC) esta verificada; falta resolver a composicao.
-            #[cfg(all(target_os = "linux", feature = "video-na-janela"))]
+            // A janela nasce ESCONDIDA (visible=false no tauri.conf) e é este
+            // bloco que a mostra — em toda plataforma e em todo caminho de erro.
+            //
+            // O motivo de nascer escondida é a lição da v0.5.10: o vídeo na
+            // janela precisa reparentar o WebView pra dentro de um GtkOverlay,
+            // e o webkit2gtk NÃO sobrevive a reparent depois de mapeado — fica
+            // alocado e "visível", mas nunca mais pinta (a janela inteira saiu
+            // preta). Antes do primeiro map, o reparent é seguro.
             if let Some(w) = app.get_webview_window("main") {
-                match w.gtk_window() {
-                    Ok(gw) => match gl_video::attach(&gw) {
-                        Ok(v) => {
-                            eprintln!("[gl_video] vídeo na janela ATIVO (mpv como biblioteca)");
-                            gl_video::guardar(v)
+                #[cfg(all(target_os = "linux", feature = "video-na-janela"))]
+                {
+                    match w.gtk_window() {
+                        Ok(gw) => match gl_video::attach(&gw) {
+                            Ok(v) => {
+                                eprintln!("[gl_video] vídeo na janela ATIVO (mpv como biblioteca)");
+                                gl_video::guardar(v);
+                            }
+                            Err(e) => eprintln!(
+                                "vídeo na janela indisponível ({}); usando janela própria do mpv",
+                                e
+                            ),
+                        },
+                        Err(e) => {
+                            eprintln!("não consegui a janela GTK ({}); usando janela própria do mpv", e)
                         }
-                        Err(e) => eprintln!("vídeo na janela indisponível ({}); usando janela própria do mpv", e),
-                    },
-                    Err(e) => eprintln!("não consegui a janela GTK ({}); usando janela própria do mpv", e),
+                    }
                 }
+                // SEMPRE, e por último: um app que não chama show() aqui é um
+                // app invisível.
+                let _ = w.show();
             }
             Ok(())
         })
@@ -145,6 +173,15 @@ pub fn run() {
                 // thread principal aqui, então a chamada Win32 é segura).
                 if let Some(state) = app_handle.try_state::<mpv::MpvState>() {
                     mpv::stop(&state);
+                }
+                // O socket da instância embutida (libmpv) sobrevive ao stop de
+                // propósito — remove-lo é tarefa do encerramento do app.
+                #[cfg(target_os = "linux")]
+                {
+                    let _ = std::fs::remove_file(format!(
+                        "{}.embed",
+                        mpv::ipc_path(std::process::id())
+                    ));
                 }
             }
         });

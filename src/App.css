@@ -360,15 +360,6 @@ button {
   align-items: center;
   justify-content: center;
 }
-/* Vídeo dentro da janela (Linux): o GtkGLArea desenha ATRÁS do WebView, então a
-   área do vídeo precisa virar um FURO transparente pra ele aparecer. O resto da
-   interface continua opaco — é o que evita a janela inteira ficar translúcida.
-   A classe entra no <html> só quando o backend confirma que o vídeo na janela
-   subiu (`gl_disponivel`); se ele falhar, nada muda e o mpv abre em janela
-   própria, como antes. */
-html.gl-video .stage {
-  background: transparent;
-}
 .stage-msg {
   text-align: center;
   color: #cfd3da;

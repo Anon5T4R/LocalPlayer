@@ -69,6 +69,11 @@ struct Proc {
 /// Abstração de escrita na IPC do mpv (uma linha JSON por comando).
 trait IpcWriter: Send {
     fn send(&mut self, line: &str) -> std::io::Result<()>;
+    /// Encerra a CONEXÃO (não só este fd). Importa no modo embutido: o servidor
+    /// da libmpv sobrevive ao stop, então sem shutdown a thread leitora antiga
+    /// ficaria viva — e cada nova conexão somaria mais um leitor emitindo os
+    /// mesmos eventos em dobro pro front.
+    fn shutdown(&self) {}
 }
 
 #[derive(Serialize)]
@@ -381,6 +386,9 @@ impl IpcWriter for UnixWriter {
         self.0.write_all(line.as_bytes())?;
         self.0.flush()
     }
+    fn shutdown(&self) {
+        let _ = self.0.shutdown(std::net::Shutdown::Both);
+    }
 }
 
 #[cfg(not(windows))]
@@ -485,8 +493,8 @@ pub fn mpv_start(
     // só conectar. Este é o caminho que faz o vídeo e os controles viverem na
     // MESMA janela.
     #[cfg(target_os = "linux")]
-    if crate::gl_video::ativo() {
-        let ipc = ipc_path(std::process::id());
+    if crate::gl_video::ativo() && !separate_window {
+        let ipc = format!("{}.embed", ipc_path(std::process::id()));
         let stream = unix_connect(&ipc)
             .map_err(|e| format!("o mpv da janela não respondeu na IPC: {}", e))?;
         let wr = stream.try_clone().map_err(|e| format!("clonar socket do mpv: {}", e))?;
@@ -497,9 +505,11 @@ pub fn mpv_start(
         *state.proc.lock().map_err(|_| "estado corrompido")? = Some(Proc {
             child: None,
             writer: Box::new(UnixWriter(wr)),
-            // O socket e criado pela libmpv de dentro do app; sem guardar o
-            // caminho ele ficaria em /tmp a cada execucao.
-            sock_path: ipc,
+            // Vazio DE PROPÓSITO: o socket pertence à instância libmpv, que
+            // sobrevive ao stop (trocar de modo reconecta nela). Apagar o
+            // arquivo aqui mataria o modo embutido até o app reiniciar; quem
+            // limpa é o encerramento do app (RunEvent::Exit).
+            sock_path: String::new(),
         });
         return Ok(StartResult { embedded: true });
     }
@@ -663,6 +673,10 @@ pub fn stage_rect(
     if state.stage_seq.fetch_max(seq, Ordering::SeqCst) >= seq {
         return;
     }
+    #[cfg(target_os = "linux")]
+    {
+        crate::gl_video::aplicar_rect(&app, x, y, w, h, visible);
+    }
     #[cfg(windows)]
     {
         let child = state.child_hwnd.load(Ordering::SeqCst);
@@ -697,6 +711,9 @@ pub fn stop(state: &MpvState) {
                 }
                 None => {
                     let _ = proc.writer.send("{\"command\":[\"stop\"]}\n");
+                    // Derruba a conexão pra thread leitora antiga sair — o
+                    // servidor continua de pé pra próxima conexão.
+                    proc.writer.shutdown();
                 }
             }
             if !proc.sock_path.is_empty() {
