@@ -37,6 +37,11 @@
         "installerIcon": "icons/icon.ico"
       }
     },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "desktop-entry.desktop"
+      }
+    },
     "fileAssociations": [
       {
         "ext": ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpg", "mpeg", "flv", "ts", "wmv"],
