@@ -41,13 +41,13 @@
         "ext": ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpg", "mpeg", "flv", "ts", "wmv"],
         "description": "Vídeo",
         "role": "Viewer",
-        "mimeType": "video/mp4,video/x-matroska,video/webm,video/x-msvideo,video/quicktime,video/x-m4v,video/mpeg,video/x-flv,video/mp2t,video/x-ms-wmv"
+        "mimeType": "video/mp4;video/x-matroska;video/webm;video/x-msvideo;video/quicktime;video/x-m4v;video/mpeg;video/x-flv;video/mp2t;video/x-ms-wmv"
       },
       {
         "ext": ["mp3", "flac", "m4a", "ogg", "opus", "wav", "aac", "wma"],
         "description": "Áudio",
         "role": "Viewer",
-        "mimeType": "audio/mpeg,audio/flac,audio/mp4,audio/ogg,audio/opus,audio/x-wav,audio/aac,audio/x-ms-wma"
+        "mimeType": "audio/mpeg;audio/flac;audio/mp4;audio/ogg;audio/opus;audio/x-wav;audio/aac;audio/x-ms-wma"
       }
     ],
     "resources": ["binaries/mpv/*", "third-party/*"],
