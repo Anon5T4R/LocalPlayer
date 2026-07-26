@@ -24,6 +24,26 @@
 //! real (libs de host empacotadas no AppDir) foi corrigida no empacotamento.
 //! Sem aquele conserto, este módulo não teria como funcionar.
 
+//! ─── ESTADO: DESLIGADO (26/07/2026) ──────────────────────────────────────────
+//!
+//! A base funciona e está verificada: a libmpv inicia, o `GtkGLArea` cria
+//! contexto, o contexto de render nasce e a IPC sobe na instância de dentro do
+//! app — tudo confirmado rodando.
+//!
+//! O que NÃO funciona é a composição. No GTK3 o `GtkGLArea` pinta por cima dos
+//! filhos de overlay, e a janela inteira fica preta. Medi as duas camadas com
+//! o app rodando: `GLArea 1180x673 | WebView 1180x673 (visível=true)` — ou
+//! seja, não é dimensionamento nem visibilidade, é ordem de desenho.
+//!
+//! Por isso o módulo está atrás da feature `video-na-janela`, desligada. O
+//! caminho de produção segue sendo o mpv em janela própria.
+//!
+//! Para retomar, o problema a resolver é ESTE: como fazer o WebView ser
+//! composto SOBRE uma superfície GL no GTK3. Caminhos plausíveis, nenhum
+//! testado ainda: `gtk_gl_area_set_use_es` + `gdk_window_ensure_native` no
+//! WebView, ou desenhar o vídeo no `draw` do próprio container em vez de num
+//! GLArea, ou subir pra GTK4 (onde a composição de widgets GL é outra).
+
 #![cfg(target_os = "linux")]
 
 use std::cell::RefCell;
@@ -120,12 +140,34 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
     let overlay = gtk::Overlay::new();
     gtk_window.remove(&conteudo);
     overlay.add(&area);
+    // O filho de OVERLAY nao herda o tamanho do pai: por padrao ele fica no
+    // tamanho natural e e posicionado pelo align. Sem forcar Fill+expand, o
+    // WebView pode ficar com area zero — e ai a janela inteira mostra so o
+    // GLArea, preta. Foi exatamente o que aconteceu na v0.5.10.
+    conteudo.set_halign(gtk::Align::Fill);
+    conteudo.set_valign(gtk::Align::Fill);
+    conteudo.set_hexpand(true);
+    conteudo.set_vexpand(true);
     overlay.add_overlay(&conteudo);
     // O WebView é a camada de cima e precisa RECEBER clique; sem isto o evento
     // atravessaria pro GLArea e a interface ficaria morta.
     overlay.set_overlay_pass_through(&conteudo, false);
     gtk_window.add(&overlay);
     overlay.show_all();
+
+    // Diagnostico: se o WebView receber area zero, a janela mostra so o GLArea
+    // (preta). Medir e o que separa "esta funcionando" de "nao deu erro".
+    {
+        let c = conteudo.clone();
+        let a = area.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_secs(3), move || {
+            eprintln!(
+                "[gl_video] alocacao — GLArea {}x{} | WebView {}x{} (visivel={})",
+                a.allocated_width(), a.allocated_height(),
+                c.allocated_width(), c.allocated_height(), c.is_visible()
+            );
+        });
+    }
 
     // A libmpv EXIGE `LC_NUMERIC=C` e se recusa a iniciar sem isso — ela avisa
     // no stderr ("Non-C locale detected") e devolve erro. O GTK, no arranque,

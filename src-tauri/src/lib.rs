@@ -97,7 +97,11 @@ pub fn run() {
             // Falhar aqui NÃO derruba o app — cai no caminho antigo (mpv em
             // janela própria), que é feio mas funciona. Um player que não abre
             // é pior que um player com duas janelas.
-            #[cfg(target_os = "linux")]
+            // DESLIGADO — ver o cabecalho de gl_video.rs. O GtkGLArea dentro de
+            // GtkOverlay pinta por cima do WebView no GTK3, e a janela inteira
+            // fica preta. O modulo fica no repo porque a base (libmpv, contexto
+            // de render, IPC) esta verificada; falta resolver a composicao.
+            #[cfg(all(target_os = "linux", feature = "video-na-janela"))]
             if let Some(w) = app.get_webview_window("main") {
                 match w.gtk_window() {
                     Ok(gw) => match gl_video::attach(&gw) {

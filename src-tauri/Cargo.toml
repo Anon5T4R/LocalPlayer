@@ -13,6 +13,11 @@ repository = "https://github.com/Anon5T4R/LocalPlayer"
 name = "localplayer_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Video dentro da janela no Linux. DESLIGADO: o GtkGLArea pinta por cima do
+# WebView no GTK3 e a janela fica preta. Ver o cabecalho de gl_video.rs.
+video-na-janela = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
