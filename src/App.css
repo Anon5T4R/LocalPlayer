@@ -14,6 +14,8 @@
   --accent-soft: #fecdd3;
   --stage: #0c0d0f;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 /* Escuro: quase-preto (L* 4) sobe ~4.5 L* mantendo matiz. O palco segue escuro. */
 :root[data-theme="dark"] {
@@ -27,6 +29,8 @@
   --accent-soft: #4c1d24;
   --stage: #0b0d10;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: dark;
 }
 :root[data-theme="nature"] {
   --bg: #eef1e9;
@@ -39,6 +43,8 @@
   --accent-soft: #e6efe1;
   --stage: #0c110c;
   --shadow: 0 10px 30px rgba(60, 70, 60, 0.14);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 :root[data-theme="darkblue"] {
   --bg: #16202e;
@@ -51,6 +57,8 @@
   --accent-soft: #1e3a5f;
   --stage: #050a12;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: dark;
 }
 :root[data-theme="calmgreen"] {
   --bg: #eaf0e9;
@@ -63,6 +71,8 @@
   --accent-soft: #dcebd9;
   --stage: #0a100b;
   --shadow: 0 10px 30px rgba(60, 70, 60, 0.14);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 :root[data-theme="pastelpink"] {
   --bg: #f8ebf0;
@@ -75,6 +85,8 @@
   --accent-soft: #fbe4ee;
   --stage: #140a0f;
   --shadow: 0 10px 30px rgba(60, 70, 60, 0.14);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 :root[data-theme="punkprincess"] {
   --bg: #1c1228;
@@ -87,6 +99,8 @@
   --accent-soft: #33143a;
   --stage: #08030d;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: dark;
 }
 
 * {
