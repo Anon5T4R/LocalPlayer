@@ -71,7 +71,6 @@ winapi = { version = "0.3", features = [
 # critério das outras libs que falam com driver de GPU — quem tem que casar com
 # o Mesa da máquina é a lib da máquina.
 [target.'cfg(target_os = "linux")'.dependencies]
-libmpv2 = "6"
 gtk = "0.18"
 gdk = "0.18"
 glib = "0.18"

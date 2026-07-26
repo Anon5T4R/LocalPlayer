@@ -1,5 +1,7 @@
 #[cfg(target_os = "linux")]
 mod gl_video;
+#[cfg(target_os = "linux")]
+mod mpv_ffi;
 /// Stub fora do Linux: o `generate_handler` referencia os comandos em TODAS as
 /// plataformas, entao eles precisam existir — respondendo "indisponivel".
 #[cfg(not(target_os = "linux"))]

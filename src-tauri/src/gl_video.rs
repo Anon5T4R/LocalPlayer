@@ -56,8 +56,8 @@ use std::ffi::{c_void, CString};
 use std::rc::Rc;
 
 use gtk::prelude::*;
-use libmpv2::render::{OpenGLInitParams, RenderContext, RenderParam, RenderParamApiType};
-use libmpv2::Mpv;
+
+use crate::mpv_ffi::{Mpv, RenderContext};
 
 /// Resolve um símbolo de OpenGL já carregado NESTE processo.
 ///
@@ -71,10 +71,6 @@ fn sym(name: &str) -> *mut c_void {
         Ok(n) => unsafe { libc::dlsym(libc::RTLD_DEFAULT, n.as_ptr()) },
         Err(_) => std::ptr::null_mut(),
     }
-}
-
-fn get_proc_address(_ctx: &(), name: &str) -> *mut c_void {
-    sym(name)
 }
 
 /// O FBO em que o GTK está desenhando agora.
@@ -95,25 +91,21 @@ fn fbo_atual() -> i32 {
 }
 
 pub struct GlVideo {
-    /// `&'static` de propósito. O `RenderContext<'a>` empresta o `Mpv`, e guardar
-    /// os dois na mesma struct faria dela auto-referencial — que o Rust recusa.
-    /// O mpv do player vive enquanto o app viver, então vazá-lo de propósito é
-    /// honesto e evita um `Pin`/`unsafe` que não pagaria por si.
+    /// `&'static` de propósito: a instância acompanha o processo (nasce no
+    /// arranque, morre com o app), então vazá-la é honesto e simples.
     mpv: &'static Mpv,
-    render: RefCell<Option<RenderContext<'static>>>,
+    render: RefCell<Option<RenderContext>>,
     area: gtk::GLArea,
 }
 
 impl GlVideo {
     /// Enfileira um arquivo no mpv. Quem desenha é o sinal `render` do GLArea.
     pub fn load(&self, path: &str) -> Result<(), String> {
-        self.mpv
-            .command("loadfile", &[path, "replace"])
-            .map_err(|e| format!("loadfile: {}", e))
+        self.mpv.command(&["loadfile", path, "replace"])
     }
 
-    pub fn command(&self, name: &str, args: &[&str]) -> Result<(), String> {
-        self.mpv.command(name, args).map_err(|e| format!("{}: {}", name, e))
+    pub fn command(&self, args: &[&str]) -> Result<(), String> {
+        self.mpv.command(args)
     }
 
     pub fn area(&self) -> &gtk::GLArea {
@@ -263,17 +255,13 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
     let ipc = format!("{}.embed", crate::mpv::ipc_path(std::process::id()));
     let _ = std::fs::remove_file(&ipc);
 
-    let mpv = Mpv::with_initializer(move |init| {
-        init.set_property("vo", "libmpv")?;
-        init.set_property("osc", false)?;
-        init.set_property("input-default-bindings", false)?;
-        init.set_property("input-vo-keyboard", false)?;
-        // `set_option` porque `input-ipc-server` e uma OPCAO, lida pelo
-        // `mpv_initialize` — e o inicializador roda antes dele. (`set_property`
-        // tambem funciona aqui; `set_option` e que diz a intencao.)
-        init.set_option("input-ipc-server", ipc.as_str())?;
-        Ok(())
-    })
+    let mpv = Mpv::criar(&[
+        ("vo", "libmpv"),
+        ("osc", "no"),
+        ("input-default-bindings", "no"),
+        ("input-vo-keyboard", "no"),
+        ("input-ipc-server", ipc.as_str()),
+    ])
     .map_err(|e| format!("não consegui iniciar o libmpv: {}", e))?;
     let mpv: &'static Mpv = Box::leak(Box::new(mpv));
 
@@ -290,11 +278,8 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
                 eprintln!("GLArea falhou ao criar contexto: {}", e);
                 return;
             }
-            match video.mpv.create_render_context(vec![
-                RenderParam::ApiType(RenderParamApiType::OpenGl),
-                RenderParam::InitParams(OpenGLInitParams { get_proc_address, ctx: () }),
-            ]) {
-                Ok(mut ctx) => {
+            match RenderContext::criar(video.mpv, sym) {
+                Ok(ctx) => {
                     // O mpv avisa daqui que há frame novo — e avisa da THREAD DE
                     // RENDER DELE. Por isso o callback precisa ser `Send`, e um
                     // widget GTK não é: capturar o GLArea aqui nem compila.
@@ -326,7 +311,7 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
                 let escala = a.scale_factor();
                 let (w, h) = (a.allocated_width() * escala, a.allocated_height() * escala);
                 let n = RENDERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                match ctx.render::<()>(fbo_atual(), w, h, true) {
+                match ctx.render(fbo_atual(), w, h, true) {
                     // Uma linha no primeiro frame: e o sinal positivo de que a
                     // cadeia inteira fechou (ausencia de erro nao prova nada).
                     Ok(()) if n == 0 => eprintln!("[gl_video] primeiro frame ok ({w}x{h})"),
