@@ -139,11 +139,30 @@ pub fn attach(gtk_window: &gtk::ApplicationWindow) -> Result<Rc<GlVideo>, String
     // `vo=libmpv` é o que diz ao mpv "não abra janela, entregue os frames pra
     // quem chamou". Sem ele o mpv abre a janela dele — que é exatamente o
     // comportamento que este módulo existe pra eliminar.
-    let mpv = Mpv::with_initializer(|init| {
+    // A IPC continua existindo — e essa e a decisao central deste modulo.
+    //
+    // Migrar o controle pra chamada direta na libmpv obrigaria a reescrever a
+    // camada de eventos inteira, e esbarraria num limite do crate: o
+    // `PropertyData` dele so tem escalares, enquanto `track-list` e
+    // `chapter-list` sao estruturas. Perderiamos faixas e capitulos, ou
+    // precisariamos de FFI cru pra MPV_FORMAT_NODE.
+    //
+    // A libmpv aceita `input-ipc-server` como qualquer mpv. Abrindo o MESMO
+    // socket que o caminho antigo usa, toda a camada de controle — comandos,
+    // observadores, o `interpretEvent` do front e seus testes — segue valendo
+    // sem uma linha alterada. O que muda e so ONDE o video e desenhado.
+    let ipc = crate::mpv::ipc_path(std::process::id());
+    let _ = std::fs::remove_file(&ipc);
+
+    let mpv = Mpv::with_initializer(move |init| {
         init.set_property("vo", "libmpv")?;
         init.set_property("osc", false)?;
         init.set_property("input-default-bindings", false)?;
         init.set_property("input-vo-keyboard", false)?;
+        // `set_option` porque `input-ipc-server` e uma OPCAO, lida pelo
+        // `mpv_initialize` — e o inicializador roda antes dele. (`set_property`
+        // tambem funciona aqui; `set_option` e que diz a intencao.)
+        init.set_option("input-ipc-server", ipc.as_str())?;
         Ok(())
     })
     .map_err(|e| format!("não consegui iniciar o libmpv: {}", e))?;
@@ -225,6 +244,12 @@ pub fn guardar(v: Rc<GlVideo>) {
 
 fn com_video<R>(f: impl FnOnce(&GlVideo) -> R) -> Option<R> {
     VIDEO.with(|c| c.borrow().as_ref().map(|v| f(v)))
+}
+
+/// O vídeo na janela subiu? Consultado pelo `mpv_start` para decidir se precisa
+/// lançar um processo mpv ou se já há um dentro do app.
+pub fn ativo() -> bool {
+    VIDEO.with(|c| c.borrow().is_some())
 }
 
 /// O vídeo na janela está disponível? O front usa isto pra decidir entre este

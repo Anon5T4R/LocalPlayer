@@ -7,6 +7,7 @@ import { HomeView } from "./components/HomeView";
 import { PlayerView } from "./components/PlayerView";
 import { SettingsModal } from "./components/SettingsModal";
 import { Toasts } from "./components/Toasts";
+import * as B from "./lib/backend";
 import { getStartupFile, inTauri } from "./lib/backend";
 import { t } from "./lib/i18n";
 import { resolveShortcut, type Action } from "./lib/shortcuts";
@@ -29,6 +30,14 @@ export default function App() {
   useEffect(() => {
     void boot();
     if (!inTauri()) return;
+
+    // Vídeo dentro da janela (Linux): o backend confirma se o GtkGLArea subiu.
+    // A classe abre um FURO transparente na área do vídeo — sem ela o WebView
+    // pinta por cima e o vídeo, que está atrás, nunca aparece. Se o backend
+    // disser que não, nada muda e o mpv abre em janela própria, como antes.
+    void B.glDisponivel()
+      .then((ok) => document.documentElement.classList.toggle("gl-video", ok))
+      .catch(() => {});
 
     const unsubs: Array<Promise<() => void>> = [];
     unsubs.push(listen<unknown>("mpv-event", (e) => applyRawEvent(e.payload)));

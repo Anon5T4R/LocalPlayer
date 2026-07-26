@@ -101,7 +101,10 @@ pub fn run() {
             if let Some(w) = app.get_webview_window("main") {
                 match w.gtk_window() {
                     Ok(gw) => match gl_video::attach(&gw) {
-                        Ok(v) => gl_video::guardar(v),
+                        Ok(v) => {
+                            eprintln!("[gl_video] vídeo na janela ATIVO (mpv como biblioteca)");
+                            gl_video::guardar(v)
+                        }
                         Err(e) => eprintln!("vídeo na janela indisponível ({}); usando janela própria do mpv", e),
                     },
                     Err(e) => eprintln!("não consegui a janela GTK ({}); usando janela própria do mpv", e),

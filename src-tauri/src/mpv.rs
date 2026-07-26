@@ -58,7 +58,9 @@ impl Default for MpvState {
 }
 
 struct Proc {
-    child: Child,
+    /// `None` quando o mpv e a libmpv de dentro do app (video na janela):
+    /// nao ha processo pra guardar nem pra matar.
+    child: Option<Child>,
     writer: Box<dyn IpcWriter>,
     /// Caminho do socket UNIX pra limpar no fim (vazio no Windows — named pipe some sozinho).
     sock_path: String,
@@ -198,11 +200,11 @@ pub(crate) fn no_window(cmd: &mut Command) {
 }
 
 #[cfg(windows)]
-fn ipc_path(pid: u32) -> String {
+pub(crate) fn ipc_path(pid: u32) -> String {
     format!(r"\\.\pipe\localplayer-mpv-{}", pid)
 }
 #[cfg(not(windows))]
-fn ipc_path(pid: u32) -> String {
+pub(crate) fn ipc_path(pid: u32) -> String {
     format!("/tmp/localplayer-mpv-{}.sock", pid)
 }
 
@@ -478,6 +480,30 @@ pub fn mpv_start(
         }
     }
 
+    // Vídeo dentro da janela (Linux): o mpv já está de pé como BIBLIOTECA,
+    // criado no arranque do app, e já abriu a IPC. Não há processo pra lançar —
+    // só conectar. Este é o caminho que faz o vídeo e os controles viverem na
+    // MESMA janela.
+    #[cfg(target_os = "linux")]
+    if crate::gl_video::ativo() {
+        let ipc = ipc_path(std::process::id());
+        let stream = unix_connect(&ipc)
+            .map_err(|e| format!("o mpv da janela não respondeu na IPC: {}", e))?;
+        let wr = stream.try_clone().map_err(|e| format!("clonar socket do mpv: {}", e))?;
+        let app_ev = app.clone();
+        std::thread::spawn(move || unix_reader_loop(stream, app_ev));
+
+        state.embed_active.store(true, Ordering::SeqCst);
+        *state.proc.lock().map_err(|_| "estado corrompido")? = Some(Proc {
+            child: None,
+            writer: Box::new(UnixWriter(wr)),
+            // O socket e criado pela libmpv de dentro do app; sem guardar o
+            // caminho ele ficaria em /tmp a cada execucao.
+            sock_path: ipc,
+        });
+        return Ok(StartResult { embedded: true });
+    }
+
     let bin = resolve_mpv(&app, &override_path)?;
 
     // Embed só no Windows e só se o usuário não pediu janela separada.
@@ -589,7 +615,7 @@ pub fn mpv_start(
 
     state.embed_active.store(embedded, Ordering::SeqCst);
     *state.proc.lock().map_err(|_| "estado corrompido")? = Some(Proc {
-        child,
+        child: Some(child),
         writer,
         sock_path: if cfg!(windows) { String::new() } else { ipc },
     });
@@ -652,14 +678,27 @@ pub fn stage_rect(
     }
 }
 
-/// Encerra o mpv (quit limpo + kill de garantia) e destrói a child window.
+/// Encerra o mpv e destrói a child window.
+///
+/// Dois casos, e a diferença importa: com o mpv em PROCESSO separado, encerrar
+/// é `quit` + kill de garantia. Com o mpv como BIBLIOTECA dentro do app (vídeo
+/// na janela), mandar `quit` derrubaria a instância que desenha o vídeo — e
+/// como ela nasce uma vez, no arranque, não haveria como recriá-la sem
+/// reiniciar o app. Ali o certo é só PARAR a reprodução e soltar a conexão.
 pub fn stop(state: &MpvState) {
     if let Ok(mut guard) = state.proc.lock() {
         if let Some(mut proc) = guard.take() {
-            let _ = proc.writer.send("{\"command\":[\"quit\"]}\n");
-            std::thread::sleep(Duration::from_millis(80));
-            let _ = proc.child.kill();
-            let _ = proc.child.wait();
+            match proc.child.as_mut() {
+                Some(child) => {
+                    let _ = proc.writer.send("{\"command\":[\"quit\"]}\n");
+                    std::thread::sleep(Duration::from_millis(80));
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+                None => {
+                    let _ = proc.writer.send("{\"command\":[\"stop\"]}\n");
+                }
+            }
             if !proc.sock_path.is_empty() {
                 let _ = std::fs::remove_file(&proc.sock_path);
             }
