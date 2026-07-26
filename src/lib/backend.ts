@@ -130,3 +130,10 @@ export const storageClearStale = () => cmd<Freed>("storage_clear_stale");
 export const storageClearMissing = () => cmd<Freed>("storage_clear_missing");
 export const storageClearTmp = () => cmd<Freed>("storage_clear_tmp");
 export const storageClearAllThumbs = () => cmd<Freed>("storage_clear_all_thumbs");
+
+// ---------- vídeo dentro da janela (Linux) ----------
+// Fatia 1 do Plano A no Linux: o mpv entra como biblioteca e desenha num
+// GtkGLArea atrás do WebView. O controle ainda passa pela IPC do caminho
+// antigo — migrar isso é a fatia 2.
+export const glDisponivel = () => cmd<boolean>("gl_disponivel", {});
+export const glLoad = (path: string) => cmd<void>("gl_load", { path });

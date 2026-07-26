@@ -46,3 +46,27 @@ winapi = { version = "0.3", features = [
     "winbase",
     "errhandlingapi",
 ] }
+
+# Vídeo dentro da janela no Linux (Plano A também aqui).
+#
+# No Windows o embed é por `--wid`: o mpv reparenteia sua janela dentro da
+# nossa. No Wayland isso NÃO EXISTE — o protocolo não permite um processo
+# enfiar sua superfície na janela de outro, e nenhum player resolve isso
+# (a libVLC tem a mesma limitação, via `--drawable-xid`).
+#
+# A saída é não usar janela nenhuma: o mpv entra como BIBLIOTECA e desenha os
+# frames num FBO que nós controlamos, dentro de um GtkGLArea da própria janela.
+# É o desenho que o Celluloid usa, e funciona igual em Wayland e X11.
+#
+# `libmpv` vem do SISTEMA (pacote `mpv`/`libmpv-dev`), não empacotado: é o mesmo
+# critério das outras libs que falam com driver de GPU — quem tem que casar com
+# o Mesa da máquina é a lib da máquina.
+[target.'cfg(target_os = "linux")'.dependencies]
+libmpv2 = "6"
+gtk = "0.18"
+gdk = "0.18"
+glib = "0.18"
+# Para resolver simbolos de OpenGL pro mpv. O GTK ja carregou a libepoxy no
+# processo, entao `dlsym(RTLD_DEFAULT)` acha os mesmos simbolos que o GtkGLArea
+# usa — sem um segundo carregador, que e onde nasceria a tela preta silenciosa.
+libc = "0.2"

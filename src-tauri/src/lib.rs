@@ -1,3 +1,4 @@
+mod gl_video;
 mod embed;
 mod mpv;
 mod resume;
@@ -91,6 +92,21 @@ pub fn run() {
             // Falhar aqui não derruba o app: fica sem prévia, o tooltip degrada
             // pra só-tempo.
             let _ = thumbs::allow_thumbs_dir(app.handle());
+
+            // Linux: põe o GtkGLArea atrás do WebView e liga o libmpv nele.
+            // Falhar aqui NÃO derruba o app — cai no caminho antigo (mpv em
+            // janela própria), que é feio mas funciona. Um player que não abre
+            // é pior que um player com duas janelas.
+            #[cfg(target_os = "linux")]
+            if let Some(w) = app.get_webview_window("main") {
+                match w.gtk_window() {
+                    Ok(gw) => match gl_video::attach(&gw) {
+                        Ok(v) => gl_video::guardar(v),
+                        Err(e) => eprintln!("vídeo na janela indisponível ({}); usando janela própria do mpv", e),
+                    },
+                    Err(e) => eprintln!("não consegui a janela GTK ({}); usando janela própria do mpv", e),
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -110,7 +126,9 @@ pub fn run() {
             storage::storage_clear_stale,
             storage::storage_clear_missing,
             storage::storage_clear_tmp,
-            storage::storage_clear_all_thumbs
+            storage::storage_clear_all_thumbs,
+            gl_video::gl_disponivel,
+            gl_video::gl_load
         ])
         .build(tauri::generate_context!())
         .expect("erro ao construir o app Tauri")
