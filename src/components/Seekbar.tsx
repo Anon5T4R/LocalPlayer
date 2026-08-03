@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 
 import { fmtTime } from "../lib/format";
@@ -18,6 +18,7 @@ interface Props {
 
 export function Seekbar({ duration, position, buffered, chapters, thumbs, onSeek }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<number | null>(null);
   const [hover, setHover] = useState<{ x: number; w: number; t: number } | null>(null);
   const setSeekPreview = useUi((s) => s.setSeekPreview);
@@ -34,13 +35,17 @@ export function Seekbar({ duration, position, buffered, chapters, thumbs, onSeek
       : null;
 
   // O tooltip com thumb fica ACIMA da barra — sobre o palco. No embed (Windows)
-  // o vídeo é uma child window nativa SOBRE o webview, então o palco precisa se
-  // esconder enquanto a prévia está visível (mesmo trato dos menus/popovers).
-  useEffect(() => {
-    setSeekPreview(thumbSrc !== null);
+  // o vídeo é uma child window nativa SOBRE o webview, então o PlayerView usa a
+  // ALTURA medida do tooltip como faixa de prévia: encolhe o retângulo do vídeo
+  // (âncora no topo) em vez de escondê-lo — o vídeo segue visível e a prévia
+  // renderiza no rodapé desobstruído do palco. Medição no layout effect pra não
+  // haver flicker no primeiro hover (strip = 0 por um frame deixaria o tooltip
+  // atrás do vídeo).
+  useLayoutEffect(() => {
+    setSeekPreview(thumbSrc !== null ? tipRef.current?.offsetHeight ?? 0 : 0);
   }, [thumbSrc, setSeekPreview]);
   // Desmontou com a prévia aberta (imersivo escondeu os controles)? Solta o palco.
-  useEffect(() => () => setSeekPreview(false), [setSeekPreview]);
+  useEffect(() => () => setSeekPreview(0), [setSeekPreview]);
 
   function timeAt(clientX: number): number {
     const el = ref.current;
@@ -84,7 +89,11 @@ export function Seekbar({ duration, position, buffered, chapters, thumbs, onSeek
   return (
     <div className="seek">
       {hover && dur > 0 && (
-        <div className={thumbSrc ? "seek-tip has-thumb" : "seek-tip"} style={{ left: tipLeft }}>
+        <div
+          ref={tipRef}
+          className={thumbSrc ? "seek-tip has-thumb" : "seek-tip"}
+          style={{ left: tipLeft }}
+        >
           {thumbSrc && <img className="seek-tip-img" src={convertFileSrc(thumbSrc)} alt="" />}
           <div className="seek-tip-time">{fmtTime(hover.t)}</div>
         </div>

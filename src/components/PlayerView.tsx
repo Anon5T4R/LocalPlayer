@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { toggleFullscreen } from "../App";
 import { stageRect } from "../lib/backend";
+import { computeStageRect } from "../lib/stage";
 import { t } from "../lib/i18n";
 import { usePlayer } from "../state/store";
 import { useUi } from "../state/ui";
@@ -25,8 +26,10 @@ export function PlayerView() {
   const stageRef = useRef<HTMLDivElement>(null);
 
   // Sincroniza a child window do vídeo (Windows/embed) com o retângulo do #stage.
-  // Coordenadas em pixels FÍSICOS (× devicePixelRatio). Só esconde pra modal/
-  // popover aparecer por cima (o mpv cuida de áudio-puro sozinho). O efeito
+  // Coordenadas em pixels FÍSICOS (× devicePixelRatio). O vídeo some SÓ pra
+  // modal/popover (o mpv cuida de áudio-puro sozinho); com o tooltip de prévia
+  // aberto a faixa no rodapé do palco ENCOLHE o retângulo (âncora no topo) em
+  // vez de esconder — o vídeo continua visível (ver computeStageRect). O efeito
   // depende SÓ de `embedded` e lê o resto via getState/subscribe — esconder no
   // cleanup a cada dep era uma corrida (comandos async chegam fora de ordem) que
   // deixava o vídeo invisível; agora o hide só acontece no unmount real.
@@ -37,15 +40,8 @@ export function PlayerView() {
     const report = () => {
       const r = el.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      const ui = useUi.getState();
-      const visible = !ui.settingsOpen && !ui.popoverOpen && !ui.seekPreview;
-      stageRect(
-        Math.round(r.left * dpr),
-        Math.round(r.top * dpr),
-        Math.round(r.width * dpr),
-        Math.round(r.height * dpr),
-        visible,
-      );
+      const rect = computeStageRect(r, dpr, useUi.getState());
+      stageRect(rect.x, rect.y, rect.w, rect.h, rect.visible);
     };
     report();
     const ro = new ResizeObserver(report);
@@ -84,14 +80,17 @@ export function PlayerView() {
 
   const chromeHidden = immersive && !controlsVisible;
 
-  // Duplo-clique ALTERNA fullscreen (padrão de players). toggleFullscreen já
-  // mantém ui.fullscreen + immersive em sincronia com o F e o botão da barra.
+  // Duplo-clique no PALCO ALTERNA fullscreen (padrão de players). Fica só no
+  // palco — nos controles/playlist o duplo-clique é das próprias ações (avançar,
+  // selecionar...). No Windows a child window do vídeo ENGOLIRIA o clique antes
+  // do WebView; o backend emite `video-dblclick` (embutido, ver App.tsx) e o
+  // fullscreen é alternado por lá. toggleFullscreen mantém ui.fullscreen +
+  // immersive em sincronia com o F e o botão da barra.
   return (
     <div
       className="player"
       data-chrome={chromeHidden ? "hidden" : "shown"}
       data-playlist={playlistOpen && !chromeHidden ? "open" : "closed"}
-      onDoubleClick={() => void toggleFullscreen()}
     >
       {!chromeHidden && (
         <div className="topbar">
@@ -108,7 +107,12 @@ export function PlayerView() {
       )}
 
       <div className="stage-wrap">
-        <div className="stage" ref={stageRef} onClick={() => usePlayer.getState().togglePause()}>
+        <div
+          className="stage"
+          ref={stageRef}
+          onClick={() => usePlayer.getState().togglePause()}
+          onDoubleClick={() => void toggleFullscreen()}
+        >
           {!embedded && (
             <div className="stage-msg">
               <p>{t("player.extWindow")}</p>

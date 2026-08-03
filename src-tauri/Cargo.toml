@@ -1,6 +1,6 @@
 [package]
 name = "localplayer"
-version = "0.5.13"
+version = "0.5.14"
 description = "LocalPlayer — player de vídeo/áudio minimalista 100% offline (motor mpv)"
 authors = ["Taylor"]
 edition = "2021"
@@ -54,6 +54,7 @@ winapi = { version = "0.3", features = [
     "winnt",
     "winbase",
     "errhandlingapi",
+    "winerror",
 ] }
 
 # Vídeo dentro da janela no Linux (Plano A também aqui).

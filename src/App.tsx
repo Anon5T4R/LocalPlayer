@@ -54,6 +54,9 @@ export default function App() {
         (e) => usePlayer.getState().applyThumbReady(e.payload),
       ),
     );
+    // Windows/embed: o vídeo é uma child window nativa SOBRE o WebView e engole
+    // o clique antes do React — o duplo-clique sobre o vídeo vem por aqui.
+    unsubs.push(listen("video-dblclick", () => void toggleFullscreen()));
     unsubs.push(
       getCurrentWebview().onDragDropEvent((event) => {
         if (event.payload.type === "drop" && event.payload.paths.length) {

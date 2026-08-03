@@ -433,8 +433,9 @@ fn ensure_child(app: &tauri::AppHandle, state: &MpvState) -> Option<isize> {
     let win = app.get_webview_window("main")?;
     let parent_isize = win.hwnd().ok()?.0 as isize;
     let (tx, rx) = std::sync::mpsc::channel::<isize>();
+    let app_ev = app.clone();
     let _ = app.run_on_main_thread(move || {
-        let r = unsafe { embed::create_child(parent_isize) };
+        let r = unsafe { embed::create_child(parent_isize, app_ev) };
         let _ = tx.send(r.unwrap_or(0));
     });
     let child = rx.recv_timeout(Duration::from_secs(3)).ok()?;
