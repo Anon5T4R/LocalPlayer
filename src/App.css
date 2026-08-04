@@ -530,14 +530,22 @@ button {
 }
 .seek-track {
   position: relative;
-  height: 6px;
-  background: var(--panel-2);
-  border-radius: 4px;
+  /* Trilha grossa de PROPOSITO: o alvo do hover/drag é a caixa inteira (16px),
+     não só a barra — mirar com o mouse e ver a miniatura não exige pontaria. */
+  height: 16px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
 }
-.seek-track:hover {
+.seek-track:hover .seek-rail {
+  height: 10px;
+}
+.seek-rail {
+  position: relative;
+  width: 100%;
   height: 8px;
-  margin-top: -1px;
+  background: var(--panel-2);
+  border-radius: 4px;
 }
 .seek-buffered {
   position: absolute;

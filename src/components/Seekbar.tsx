@@ -106,15 +106,17 @@ export function Seekbar({ duration, position, buffered, chapters, thumbs, onSeek
         onPointerUp={onUp}
         onPointerLeave={() => setHover(null)}
       >
-        <div className="seek-buffered" style={{ width: `${bufPct}%` }} />
-        <div className="seek-played" style={{ width: `${pct}%` }} />
-        {dur > 0 &&
-          chapters.map((c, i) =>
-            c.time > 0 && c.time < dur ? (
-              <span key={i} className="seek-chapter" style={{ left: `${(c.time / dur) * 100}%` }} title={c.title} />
-            ) : null,
-          )}
-        <div className="seek-thumb" style={{ left: `${pct}%` }} />
+        <div className="seek-rail">
+          <div className="seek-buffered" style={{ width: `${bufPct}%` }} />
+          <div className="seek-played" style={{ width: `${pct}%` }} />
+          {dur > 0 &&
+            chapters.map((c, i) =>
+              c.time > 0 && c.time < dur ? (
+                <span key={i} className="seek-chapter" style={{ left: `${(c.time / dur) * 100}%` }} title={c.title} />
+              ) : null,
+            )}
+          <div className="seek-thumb" style={{ left: `${pct}%` }} />
+        </div>
       </div>
     </div>
   );
