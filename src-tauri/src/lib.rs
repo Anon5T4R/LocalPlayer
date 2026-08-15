@@ -27,6 +27,7 @@ use tauri::{Emitter, Manager};
 
 /// Caminho passado no launch ("Abrir com" num vídeo/áudio), se houver.
 #[tauri::command(async)]
+
 fn get_startup_file() -> Option<String> {
     std::env::args()
         .skip(1)
@@ -62,6 +63,22 @@ fn open_main(app: &tauri::AppHandle) {
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
+}
+
+/// Contorna a titlebar quebrada do tao <= 0.35 no GNOME/Wayland (CSD propia
+/// com regiao de input morta — causa e fix em tao#1218, so via tauri 2.12):
+/// troca por uma HeaderBar comum com layout forcado min/max/fechar, ANTES do
+/// primeiro map. Sai junto com o upgrade ao tao 0.36 (wry 0.56).
+#[cfg(target_os = "linux")]
+fn instalar_csd_limpa(w: &tauri::WebviewWindow) {
+    use gtk::prelude::*;
+    let Ok(gw) = w.gtk_window() else { return };
+    let header = gtk::HeaderBar::new();
+    header.set_show_close_button(true);
+    header.set_decoration_layout(Some("menu:minimize,maximize,close"));
+    header.set_title(Some("LocalPlayer"));
+    header.show();
+    gw.set_titlebar(Some(&header));
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -104,6 +121,11 @@ pub fn run() {
         .manage(mpv::MpvState::default())
         .manage(thumbs::ThumbsState::default())
         .setup(|app| {
+
+            #[cfg(target_os = "linux")]
+            if let Some(w) = app.get_webview_window("main") {
+                instalar_csd_limpa(&w);
+            }
             // Libera a pasta de miniaturas no protocolo asset: (SÓ ela).
             // Falhar aqui não derruba o app: fica sem prévia, o tooltip degrada
             // pra só-tempo.
