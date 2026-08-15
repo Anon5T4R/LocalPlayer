@@ -1,0 +1,15 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "LocalPlayer",
+        "width": 1180,
+        "height": 720,
+        "minWidth": 720,
+        "minHeight": 460,
+        "dragDropEnabled": true,
+        "visible": false
+      }
+    ]
+  }
+}
