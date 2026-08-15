@@ -143,6 +143,30 @@ pub fn run() {
                 // SEMPRE, e por último: um app que não chama show() aqui é um
                 // app invisível.
                 let _ = w.show();
+                // Bug do tao ≤ 0.35 no Wayland/GNOME: janela que nasce
+                // escondida e é mostrada depois fica com os botões da titlebar
+                // (min/max/fechar) sem resposta até um resize (tauri#11856,
+                // exatamente este cenário de visible:false + show()). Alternar
+                // `resizable` força o GTK a revalidar as decorações. Corrigido
+                // upstream no tao 0.36 (via wry 0.56, ainda não puxado por
+                // nenhuma release estável do tauri): remover no upgrade.
+                #[cfg(target_os = "linux")]
+                {
+                    let _ = w.set_resizable(false);
+                    let _ = w.set_resizable(true);
+                }
+                // E a cada foco: cobre o hide→show da bandeja/single-instance
+                // (mesma causa do bloco acima).
+                #[cfg(target_os = "linux")]
+                {
+                    let wf = w.clone();
+                    let _ = w.on_window_event(move |ev| {
+                        if let tauri::WindowEvent::Focused(true) = ev {
+                            let _ = wf.set_resizable(false);
+                            let _ = wf.set_resizable(true);
+                        }
+                    });
+                }
             }
             Ok(())
         })
