@@ -41,7 +41,9 @@ let nextToast = 1;
 export const useUi = create<UiState>((set) => ({
   toasts: [],
   settingsOpen: false,
-  playlistOpen: true,
+  // False no boot: quem abre uma mídia ("abrir com", drop) quer ver o vídeo,
+  // não a playlist — o botão/atalho da ControlBar abre quando quiser.
+  playlistOpen: false,
   immersive: false,
   fullscreen: false,
   controlsVisible: true,
